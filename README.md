@@ -51,6 +51,10 @@ To remove it:
 .\game-mode-wmi-uninstall.ps1
 ```
 
+## To-do
+
+- [ ] **Customize menu** — let the user toggle which modules are active (Power Plan, Explorer, Defender, SysMain, Network Throttling) before applying, accessible via a `[C] Customize` key in the main menu
+
 ## Requirements
 
 - Windows 10/11
