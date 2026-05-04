@@ -2,7 +2,7 @@
 if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
     $me = if ($PSCommandPath) { $PSCommandPath } else { $MyInvocation.MyCommand.Path }
     try {
-        Start-Process powershell.exe -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$me`"" -Verb RunAs -ErrorAction Stop
+        Start-Process wt.exe -ArgumentList "powershell.exe -NoProfile -ExecutionPolicy Bypass -File `"$me`"" -Verb RunAs -ErrorAction Stop
     } catch {
         Write-Host "Elevation failed: $_" -ForegroundColor Red
         Read-Host 'Press Enter to close'
@@ -20,6 +20,28 @@ $root = Split-Path (Split-Path $PSCommandPath -Parent) -Parent
 . "$root\SysMain\_module.ps1"
 . "$root\Network Throttling\_module.ps1"
 
+# ── Helpers ───────────────────────────────────────────────────────────────────
+function Get-ArtColor ([char]$ch) {
+    if ($ch -eq '░') { return 'DarkGray' }
+    $cp = [int]$ch
+    if ($cp -ge 0x2500 -and $cp -le 0x257F) { return 'DarkGray' }
+    return 'White'
+}
+
+function Write-Art ([string]$line) {
+    $seg = ''; $curColor = $null
+    foreach ($ch in $line.ToCharArray()) {
+        $color = Get-ArtColor $ch
+        if ($color -ne $curColor) {
+            if ($seg) { Write-Host $seg -NoNewline -ForegroundColor $curColor }
+            $seg = ''; $curColor = $color
+        }
+        $seg += $ch
+    }
+    if ($seg) { Write-Host $seg -NoNewline -ForegroundColor $curColor }
+    Write-Host ''
+}
+
 # ── Menu loop ─────────────────────────────────────────────────────────────────
 
 $running = $true
@@ -34,22 +56,33 @@ while ($running) {
     $on = ((Get-ExplorerState) -eq 'Stopped') -and ((Get-PowerPlanState) -eq 'Ultimate Performance')
     $actionLabel = if ($on) { 'Disable Game Mode' } else { 'Enable Game Mode' }
 
-    Write-Host "  ██████╗  █████╗ ███╗   ███╗███████╗"
-    Write-Host " ██╔════╝ ██╔══██╗████╗ ████║██╔════╝"
-    Write-Host " ██║  ███╗███████║██╔████╔██║█████╗  "
-    Write-Host " ██║   ██║██╔══██║██║╚██╔╝██║██╔══╝  "
-    Write-Host " ╚██████╔╝██║  ██║██║ ╚═╝ ██║███████╗"
-    Write-Host "  ╚═════╝ ╚═╝  ╚═╝╚═╝     ╚═╝╚══════╝"
     Write-Host ""
-    Write-Host " ███╗   ███╗ ██████╗ ██████╗ ███████╗"
-    Write-Host " ████╗ ████║██╔═══██╗██╔══██╗██╔════╝"
-    Write-Host " ██╔████╔██║██║   ██║██║  ██║█████╗  "
-    Write-Host " ██║╚██╔╝██║██║   ██║██║  ██║██╔══╝  "
-    Write-Host " ██║ ╚═╝ ██║╚██████╔╝██████╔╝███████╗"
-    Write-Host " ╚═╝     ╚═╝ ╚═════╝ ╚═════╝ ╚══════╝"
+    Write-Art " ░██████╗░░█████╗░███╗░░░███╗███████╗"
+    Write-Art " ██╔════╝░██╔══██╗████╗░████║██╔════╝"
+    Write-Art " ██║░░██╗░███████║██╔████╔██║█████╗░░"
+    Write-Art " ██║░░╚██╗██╔══██║██║╚██╔╝██║██╔══╝░░"
+    Write-Art " ╚██████╔╝██║░░██║██║░╚═╝░██║███████╗"
+    Write-Art " ░╚═════╝░╚═╝░░╚═╝╚═╝░░░░╚═╝╚══════╝"
+    Write-Art " ███╗░░░███╗░█████╗░██████╗░███████╗"
+    Write-Art " ████╗░████║██╔══██╗██╔══██╗██╔════╝"
+    Write-Art " ██╔████╔██║██║░░██║██║░░██║█████╗░░"
+    Write-Art " ██║╚██╔╝██║██║░░██║██║░░██║██╔══╝░░"
+    Write-Art " ██║░╚═╝░██║╚█████╔╝██████╔╝███████╗"
+    Write-Art " ╚═╝░░░░╚═╝░╚════╝░╚═════╝░╚══════╝"
+    $statusLabel = if ($on) { 'ENABLED' } else { 'DISABLED' }
+    $statusColor = if ($on) { 'Green' } else { 'Red' }
+    $dash = ' ' + ('- ' * 19)
+    $statusText = 'STATUS: '
+    $pad = [string]::new(' ', [Math]::Floor(($dash.Length - $statusText.Length - $statusLabel.Length) / 2))
     Write-Host ""
-    Write-Host ("  " + $actionLabel)
-    Write-Host "  [Press Enter]"
+    Write-Host $dash -ForegroundColor DarkGray
+    Write-Host ""
+    Write-Host ($pad + $statusText) -NoNewline -ForegroundColor DarkGray
+    Write-Host $statusLabel -ForegroundColor $statusColor
+    Write-Host ""
+    Write-Host $dash -ForegroundColor DarkGray
+    Write-Host ""
+    Write-Host "  [Press Enter] $actionLabel"
     Write-Host ""
     Write-Host "  [Q] Quit"
     Write-Host ""
