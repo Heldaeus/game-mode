@@ -3,5 +3,9 @@ function Get-DefenderState {
 }
 
 function Set-Defender([bool]$disable) {
-    Set-MpPreference -DisableRealtimeMonitoring $disable
+    try {
+        Set-MpPreference -DisableRealtimeMonitoring $disable -ErrorAction Stop
+    } catch {
+        # Tamper Protection or group policy is blocking this — skip silently
+    }
 }

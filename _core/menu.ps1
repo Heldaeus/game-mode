@@ -71,20 +71,20 @@ while ($running) {
     Write-Art " ╚═╝░░░░╚═╝░╚════╝░╚═════╝░╚══════╝"
     $statusLabel = if ($on) { 'ENABLED' } else { 'DISABLED' }
     $statusColor = if ($on) { 'Green' } else { 'Red' }
-    $dash = ' ' + ('- ' * 19)
+    $dash = ' ' + ('═' * 35)
     $statusText = 'STATUS: '
     $pad = [string]::new(' ', [Math]::Floor(($dash.Length - $statusText.Length - $statusLabel.Length) / 2))
     Write-Host ""
     Write-Host $dash -ForegroundColor DarkGray
     Write-Host ""
-    Write-Host ($pad + $statusText) -NoNewline -ForegroundColor DarkGray
+    Write-Host ($pad + $statusText) -NoNewline -ForegroundColor Gray
     Write-Host $statusLabel -ForegroundColor $statusColor
     Write-Host ""
     Write-Host $dash -ForegroundColor DarkGray
     Write-Host ""
-    Write-Host "  [Press Enter] $actionLabel"
+    Write-Host "  " -NoNewline; Write-Host "[PRESS ENTER]" -NoNewline -ForegroundColor DarkGray; Write-Host " $actionLabel"
     Write-Host ""
-    Write-Host "  [Q] Quit"
+    Write-Host "  " -NoNewline; Write-Host "[Q]" -NoNewline -ForegroundColor DarkGray; Write-Host " Quit"
     Write-Host ""
 
     # ReadKey captures a single keypress without echoing it or showing a prompt.
