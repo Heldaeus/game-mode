@@ -6,7 +6,7 @@ function Show-AudioDevice {
         if ($redraw) {
             [Console]::Clear()
 
-            $dash = ' ' + ('-' * 35)
+            $dash = ' ' + ([string][char]0x2550 * 35)
             Write-Host ""
             Write-Host $dash -ForegroundColor DarkGray
             Write-Host ""
@@ -62,11 +62,13 @@ function Show-Settings {
     while ($inSettings) {
         [Console]::Clear()
 
-        $dash = ' ' + ('-' * 35)
+        $dash = ' ' + ([string][char]0x2550 * 35)
         Write-Host ""
         Write-Host $dash -ForegroundColor DarkGray
         Write-Host ""
-        Write-Host "   SETTINGS" -ForegroundColor White
+        $title = 'SETTINGS'
+        $pad = [string]::new(' ', [Math]::Floor(($dash.Length - $title.Length) / 2))
+        Write-Host ($pad + $title) -ForegroundColor White
         Write-Host ""
         Write-Host $dash -ForegroundColor DarkGray
         Write-Host ""
@@ -79,8 +81,6 @@ function Show-Settings {
         Write-Host ""
 
         if (-not $hasAudio) {
-            Write-Host $dash -ForegroundColor DarkGray
-            Write-Host ""
             Write-Host "  " -NoNewline
             Write-Host "AudioDeviceCmdlets not installed." -ForegroundColor Yellow
             Write-Host "  " -NoNewline; Write-Host "[I]" -NoNewline -ForegroundColor DarkGray; Write-Host " Install to unlock Audio settings"
