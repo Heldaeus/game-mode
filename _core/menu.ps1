@@ -52,9 +52,9 @@ function Get-SettingsAlert {
     ((Get-MpComputerStatus).IsTamperProtected)
 }
 
-$settingsAlert = Get-SettingsAlert
-
 try {
+
+$settingsAlert = Get-SettingsAlert
 
 while ($running) {
     [Console]::Clear()
