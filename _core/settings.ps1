@@ -63,6 +63,8 @@ function Show-Settings {
     while ($inSettings) {
         [Console]::Clear()
 
+        $tamperOn = (Get-MpComputerStatus).IsTamperProtected
+
         $dash = ' ' + ([string][char]0x2550 * 35)
         Write-Host ""
         Write-Host $dash -ForegroundColor DarkGray
@@ -95,10 +97,19 @@ function Show-Settings {
             Write-Host ""
         }
 
+        if ($tamperOn) {
+            Write-Host "  " -NoNewline
+            Write-Host "Tamper Protection is enabled - Defender cannot be toggled." -ForegroundColor Yellow
+            Write-Host "  " -NoNewline; Write-Host "[T]" -NoNewline -ForegroundColor DarkGray; Write-Host " Open Defender settings to disable it"
+            Write-Host ""
+        }
+
         $key = [Console]::ReadKey($true)
 
         if ($hasAudio -and $key.KeyChar -eq '1') {
             Show-AudioDevice
+        } elseif ($tamperOn -and ($key.KeyChar -eq 't' -or $key.KeyChar -eq 'T')) {
+            Start-Process "windowsdefender://threatsettings"
         } elseif (-not $hasAudio -and ($key.KeyChar -eq 'i' -or $key.KeyChar -eq 'I')) {
             [Console]::Clear()
             Write-Host ""
