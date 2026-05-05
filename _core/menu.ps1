@@ -46,6 +46,14 @@ function Write-Art ([string]$line) {
 
 $running = $true
 
+function Get-SettingsAlert {
+    (-not [bool](Get-Module -ListAvailable -Name AudioDeviceCmdlets)) -or
+    (-not (Test-UltimatePerfAvailable)) -or
+    ((Get-MpComputerStatus).IsTamperProtected)
+}
+
+$settingsAlert = Get-SettingsAlert
+
 try {
 
 while ($running) {
@@ -54,9 +62,6 @@ while ($running) {
     # Explorer + Power Plan are the reliable visible indicators of game state.
     # New modules (Defender, SysMain, Network) run as side effects but don't gate the toggle.
     $on = ((Get-ExplorerState) -eq 'Stopped') -and ((Get-PowerPlanState) -eq 'Ultimate Performance')
-    $settingsAlert = (-not [bool](Get-Module -ListAvailable -Name AudioDeviceCmdlets)) -or
-                     (-not (Test-UltimatePerfAvailable)) -or
-                     ((Get-MpComputerStatus).IsTamperProtected)
     $actionLabel = if ($on) { 'Disable Game Mode' } else { 'Enable Game Mode' }
 
     Write-Host ""
@@ -113,6 +118,7 @@ while ($running) {
     } elseif ($key.KeyChar -eq 's' -or $key.KeyChar -eq 'S') {
         . "$root\_core\settings.ps1"
         Show-Settings
+        $settingsAlert = Get-SettingsAlert
     } elseif ($key.KeyChar -eq 'q' -or $key.KeyChar -eq 'Q') {
         $running = $false
     }
