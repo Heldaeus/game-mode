@@ -92,7 +92,23 @@ function Show-Settings {
         if ($hasAudio -and $key.KeyChar -eq '1') {
             Show-AudioDevice
         } elseif (-not $hasAudio -and ($key.KeyChar -eq 'i' -or $key.KeyChar -eq 'I')) {
-            # launch install script here
+            [Console]::Clear()
+            Write-Host ""
+            Write-Host "  Installing AudioDeviceCmdlets..." -ForegroundColor Gray
+            Write-Host ""
+            try {
+                Install-Module AudioDeviceCmdlets -Scope CurrentUser -Force -ErrorAction Stop
+                $hasAudio = $true
+                [Console]::Clear()
+                Write-Host ""
+                Write-Host "  Installed successfully." -ForegroundColor Green
+                Write-Host ""
+                Start-Sleep -Seconds 1
+            } catch {
+                Write-Host "  Install failed: $_" -ForegroundColor Red
+                Write-Host ""
+                Read-Host '  Press Enter to continue'
+            }
         } elseif ($key.KeyChar -eq 'b' -or $key.KeyChar -eq 'B') {
             $inSettings = $false
         }
