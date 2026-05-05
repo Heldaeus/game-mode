@@ -53,6 +53,22 @@ To remove it:
 
 ## Known issues
 
+### STATUS shows ENABLED even if Defender was not actually toggled
+
+`$on` (the game mode state indicator) is derived from Explorer and Power Plan only. If Defender's real-time protection fails to toggle — most commonly because Tamper Protection is blocking it — the menu still reports ENABLED. The Settings screen will show a warning when Tamper Protection is detected, but the main menu gives no indication that the toggle was partially applied.
+
+### Settings alert asterisk can go stale
+
+The `*` next to `[S] Settings` is computed once at startup and once on return from Settings. If the user changes a relevant system setting externally (e.g. disabling Tamper Protection via Windows Security without going through the `[T]` prompt), the asterisk won't clear until the user opens and closes Settings.
+
+### Crash before friendly error handler if WMI is unavailable
+
+`Get-SettingsAlert` (which checks Tamper Protection via `Get-MpComputerStatus`) runs before the `try/catch` that wraps the menu loop. If the WMI service is unavailable, the script exits with a raw PowerShell error instead of the "Press Enter to close" prompt.
+
+### `[T]` gives no instruction to return after opening Windows Security
+
+Pressing `[T]` in Settings opens Windows Security to the Tamper Protection toggle but leaves no prompt in the terminal telling the user to come back. The Settings screen does self-correct on the next keypress — it rechecks `IsTamperProtected` at the top of each loop iteration — but the user has no visual cue that this will happen.
+
 ### Self-elevation opens a plain PowerShell window instead of Windows Terminal
 
 The script elevates by re-launching `powershell.exe` directly with `-Verb RunAs`. This works reliably but loses the Windows Terminal chrome.
