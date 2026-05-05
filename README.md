@@ -69,13 +69,11 @@ The `*` next to `[S] Settings` is computed once at startup and once on return fr
 
 Pressing `[T]` in Settings opens Windows Security to the Tamper Protection toggle but leaves no prompt in the terminal telling the user to come back. The Settings screen does self-correct on the next keypress — it rechecks `IsTamperProtected` at the top of each loop iteration — but the user has no visual cue that this will happen.
 
-### Self-elevation opens a plain PowerShell window instead of Windows Terminal
+### No auto-elevation — script must be run as Administrator
 
-The script elevates by re-launching `powershell.exe` directly with `-Verb RunAs`. This works reliably but loses the Windows Terminal chrome.
+Self-elevation was removed. If the script is launched without admin rights it exits immediately with a message instructing the user to re-launch as Administrator.
 
-The previous approach — elevating `wt.exe` and having it spawn PowerShell — caused an **infinite UAC loop**: WT does not reliably propagate its elevated token to the PowerShell process it spawns inside a tab, so the `IsInRole(Administrator)` check kept failing in the new window and the script kept spawning UAC prompts. On a system with an account lockout policy this locked the user account.
-
-**Potential workaround to investigate:** Windows Terminal 1.18+ added an `--elevate` flag (`wt --elevate new-tab powershell.exe ...`) and per-profile `"elevate": true` in `settings.json`. Either could allow self-elevation inside WT properly, but both depend on the user's WT version and profile configuration, making them fragile as a general solution. Worth revisiting if a clean WT-native elevation path can be confirmed.
+The previous auto-elevation approach re-launched `powershell.exe` with `-Verb RunAs`, which worked but always opened a plain conhost window instead of Windows Terminal. An earlier attempt to elevate via `wt.exe` caused an **infinite UAC loop** on some systems, locking user accounts. Removing auto-elevation sidesteps both problems cleanly.
 
 ## To-do
 

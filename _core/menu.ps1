@@ -1,12 +1,9 @@
 ﻿# ── Elevation ─────────────────────────────────────────────────────────────────
 if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
-    $me = if ($PSCommandPath) { $PSCommandPath } else { $MyInvocation.MyCommand.Path }
-    try {
-        Start-Process powershell.exe -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$me`"" -Verb RunAs -ErrorAction Stop
-    } catch {
-        Write-Host "Elevation failed: $_" -ForegroundColor Red
-        Read-Host 'Press Enter to close'
-    }
+    Write-Host ""
+    Write-Host "  This script must be run as Administrator." -ForegroundColor Red
+    Write-Host ""
+    Read-Host '  Press Enter to close'
     exit
 }
 
