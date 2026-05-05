@@ -54,6 +54,9 @@ while ($running) {
     # Explorer + Power Plan are the reliable visible indicators of game state.
     # New modules (Defender, SysMain, Network) run as side effects but don't gate the toggle.
     $on = ((Get-ExplorerState) -eq 'Stopped') -and ((Get-PowerPlanState) -eq 'Ultimate Performance')
+    $settingsAlert = (-not [bool](Get-Module -ListAvailable -Name AudioDeviceCmdlets)) -or
+                     (-not (Test-UltimatePerfAvailable)) -or
+                     ((Get-MpComputerStatus).IsTamperProtected)
     $actionLabel = if ($on) { 'Disable Game Mode' } else { 'Enable Game Mode' }
 
     Write-Host ""
@@ -84,7 +87,9 @@ while ($running) {
     Write-Host ""
     Write-Host "  " -NoNewline; Write-Host "[PRESS ENTER]" -NoNewline -ForegroundColor DarkGray; Write-Host " $actionLabel"
     Write-Host ""
-    Write-Host "  " -NoNewline; Write-Host "[S]" -NoNewline -ForegroundColor DarkGray; Write-Host " Settings"
+    Write-Host "  " -NoNewline; Write-Host "[S]" -NoNewline -ForegroundColor DarkGray
+    if ($settingsAlert) { Write-Host " Settings " -NoNewline; Write-Host "*" -ForegroundColor Yellow }
+    else                 { Write-Host " Settings" }
     Write-Host "  " -NoNewline; Write-Host "[Q]" -NoNewline -ForegroundColor DarkGray; Write-Host " Quit"
     Write-Host ""
 
