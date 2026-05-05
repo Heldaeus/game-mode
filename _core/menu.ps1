@@ -84,6 +84,7 @@ while ($running) {
     Write-Host ""
     Write-Host "  " -NoNewline; Write-Host "[PRESS ENTER]" -NoNewline -ForegroundColor DarkGray; Write-Host " $actionLabel"
     Write-Host ""
+    Write-Host "  " -NoNewline; Write-Host "[S]" -NoNewline -ForegroundColor DarkGray; Write-Host " Settings"
     Write-Host "  " -NoNewline; Write-Host "[Q]" -NoNewline -ForegroundColor DarkGray; Write-Host " Quit"
     Write-Host ""
 
@@ -104,6 +105,9 @@ while ($running) {
             Set-SysMain $false
             Set-NetworkThrottle $false
         }
+    } elseif ($key.KeyChar -eq 's' -or $key.KeyChar -eq 'S') {
+        . "$root\_core\settings.ps1"
+        Show-Settings
     } elseif ($key.KeyChar -eq 'q' -or $key.KeyChar -eq 'Q') {
         $running = $false
     }
