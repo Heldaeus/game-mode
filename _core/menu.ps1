@@ -54,10 +54,10 @@ function Get-SettingsAlert {
 
 try {
 
-$settingsAlert = Get-SettingsAlert
-
 while ($running) {
     [Console]::Clear()
+
+    $settingsAlert = Get-SettingsAlert
 
     # Explorer + Power Plan are the reliable visible indicators of game state.
     # New modules (Defender, SysMain, Network) run as side effects but don't gate the toggle.
@@ -118,7 +118,6 @@ while ($running) {
     } elseif ($key.KeyChar -eq 's' -or $key.KeyChar -eq 'S') {
         . "$root\_core\settings.ps1"
         Show-Settings
-        $settingsAlert = Get-SettingsAlert
     } elseif ($key.KeyChar -eq 'q' -or $key.KeyChar -eq 'Q') {
         $running = $false
     }
