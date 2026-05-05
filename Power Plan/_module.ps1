@@ -9,6 +9,11 @@ function Get-PowerPlanState {
     else { 'Other' }
 }
 
+function Test-UltimatePerfAvailable {
+    $list = & powercfg /list 2>&1
+    return [bool]($list | Where-Object { $_ -match 'Ultimate Performance' })
+}
+
 function Set-PowerPlan([string]$plan) {
     if ($plan -eq 'Ultimate') {
         & powercfg /setactive $script:UltimatePerfGuid

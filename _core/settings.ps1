@@ -57,7 +57,8 @@ function Show-AudioDevice {
 
 function Show-Settings {
     $inSettings = $true
-    $hasAudio = [bool](Get-Module -ListAvailable -Name AudioDeviceCmdlets)
+    $hasAudio   = [bool](Get-Module -ListAvailable -Name AudioDeviceCmdlets)
+    $hasUltimate = Test-UltimatePerfAvailable
 
     while ($inSettings) {
         [Console]::Clear()
@@ -87,6 +88,13 @@ function Show-Settings {
             Write-Host ""
         }
 
+        if (-not $hasUltimate) {
+            Write-Host "  " -NoNewline
+            Write-Host "Ultimate Performance plan not available." -ForegroundColor Yellow
+            Write-Host "  " -NoNewline; Write-Host "[P]" -NoNewline -ForegroundColor DarkGray; Write-Host " Provision Ultimate Performance plan"
+            Write-Host ""
+        }
+
         $key = [Console]::ReadKey($true)
 
         if ($hasAudio -and $key.KeyChar -eq '1') {
@@ -106,6 +114,24 @@ function Show-Settings {
                 Start-Sleep -Seconds 1
             } catch {
                 Write-Host "  Install failed: $_" -ForegroundColor Red
+                Write-Host ""
+                Read-Host '  Press Enter to continue'
+            }
+        } elseif (-not $hasUltimate -and ($key.KeyChar -eq 'p' -or $key.KeyChar -eq 'P')) {
+            [Console]::Clear()
+            Write-Host ""
+            Write-Host "  Provisioning Ultimate Performance plan..." -ForegroundColor Gray
+            Write-Host ""
+            & powercfg /duplicatescheme e9a42b02-d5df-448d-aa00-03f14749eb61 2>&1 | Out-Null
+            if ($LASTEXITCODE -eq 0) {
+                $hasUltimate = $true
+                [Console]::Clear()
+                Write-Host ""
+                Write-Host "  Provisioned successfully." -ForegroundColor Green
+                Write-Host ""
+                Start-Sleep -Seconds 1
+            } else {
+                Write-Host "  Provisioning failed. This plan requires Windows Pro/Enterprise." -ForegroundColor Red
                 Write-Host ""
                 Read-Host '  Press Enter to continue'
             }
