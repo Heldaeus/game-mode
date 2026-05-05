@@ -19,7 +19,7 @@ $consumerName  = "GameModeConsumer"
 # Register a scheduled task that launches Game Optimizer in the user's interactive session.
 # MultipleInstances IgnoreNew prevents a second window if Steam relaunches while it's open.
 $action    = New-ScheduledTaskAction -Execute "cmd.exe" -Argument "/c `"$gameModeRoot\Game Optimizer.bat`""
-$principal = New-ScheduledTaskPrincipal -UserId $env:USERNAME -LogonType Interactive
+$principal = New-ScheduledTaskPrincipal -UserId $env:USERNAME -LogonType Interactive -RunLevel Highest
 $settings  = New-ScheduledTaskSettingsSet `
                 -AllowStartIfOnBatteries `
                 -DontStopIfGoingOnBatteries `
