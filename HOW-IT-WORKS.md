@@ -513,7 +513,10 @@ This is the connection object that wires the filter to the consumer. Without the
 ```powershell
 $action    = New-ScheduledTaskAction -Execute "cmd.exe" -Argument "/c `"$gameModeRoot\Game Optimizer.bat`""
 $principal = New-ScheduledTaskPrincipal -UserId $env:USERNAME -LogonType Interactive
-$settings  = New-ScheduledTaskSettingsSet -MultipleInstances IgnoreNew
+$settings  = New-ScheduledTaskSettingsSet `
+                -AllowStartIfOnBatteries `
+                -DontStopIfGoingOnBatteries `
+                -MultipleInstances IgnoreNew
 ```
 
 - **Action**: run `cmd.exe` with the `.bat` file as the argument — effectively double-clicking it programmatically.
@@ -542,7 +545,9 @@ $consumer = Get-WmiObject -Class CommandLineEventConsumer -Filter "Name='$consum
 if ($consumer) { $consumer | Remove-WmiObject }
 
 # 4. Remove scheduled task
-Unregister-ScheduledTask -TaskName $taskName -Confirm:$false
+if (Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue) {
+    Unregister-ScheduledTask -TaskName $taskName -Confirm:$false
+}
 ```
 
 Every removal step is wrapped in an `if` check — if the object isn't found (already removed, or never created), it prints a message and moves on instead of crashing. This makes the script safe to run multiple times.

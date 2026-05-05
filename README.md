@@ -51,6 +51,16 @@ To remove it:
 .\game-mode-wmi-uninstall.ps1
 ```
 
+## Known issues
+
+### Self-elevation opens a plain PowerShell window instead of Windows Terminal
+
+The script elevates by re-launching `powershell.exe` directly with `-Verb RunAs`. This works reliably but loses the Windows Terminal chrome.
+
+The previous approach — elevating `wt.exe` and having it spawn PowerShell — caused an **infinite UAC loop**: WT does not reliably propagate its elevated token to the PowerShell process it spawns inside a tab, so the `IsInRole(Administrator)` check kept failing in the new window and the script kept spawning UAC prompts. On a system with an account lockout policy this locked the user account.
+
+**Potential workaround to investigate:** Windows Terminal 1.18+ added an `--elevate` flag (`wt --elevate new-tab powershell.exe ...`) and per-profile `"elevate": true` in `settings.json`. Either could allow self-elevation inside WT properly, but both depend on the user's WT version and profile configuration, making them fragile as a general solution. Worth revisiting if a clean WT-native elevation path can be confirmed.
+
 ## To-do
 
 - [ ] **Customize menu** — let the user toggle which modules are active (Power Plan, Explorer, Defender, SysMain, Network Throttling) before applying, accessible via a `[C] Customize` key in the main menu
