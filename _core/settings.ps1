@@ -83,6 +83,10 @@ function Show-TamperProtection {
                 Write-Host "  Windows Security window that opened." -ForegroundColor Gray
             } else {
                 Write-Host $state -ForegroundColor Green
+                Write-Host ""
+                Write-Host "  Note: this script will not re-enable" -ForegroundColor DarkGray
+                Write-Host "  Tamper Protection automatically. Re-enable" -ForegroundColor DarkGray
+                Write-Host "  it manually when done gaming." -ForegroundColor DarkGray
             }
             Write-Host ""
             Write-Host "  " -NoNewline; Write-Host "[B]" -NoNewline -ForegroundColor DarkGray; Write-Host " Back"
