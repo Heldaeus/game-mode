@@ -101,7 +101,7 @@ Here is the full journey from double-click to your screen going back to normal, 
 
 2. **The .bat file runs one line:** it opens Windows Terminal (`wt.exe`) and tells it to run `_core/menu.ps1` in a new PowerShell window, with the execution policy bypassed (meaning: Windows won't refuse to run the script just because it's unsigned).
 
-3. **`menu.ps1` wakes up.** The first thing it does is check: *am I running as Administrator?* If not, it immediately tries to re-launch itself with elevated (admin) privileges. Without admin, most of the system changes would silently fail.
+3. **`menu.ps1` wakes up.** The first thing it does is check: *am I running as Administrator?* If not, it prints an error in red and exits immediately — you must re-launch the `.bat` file as Administrator manually. Without admin, most of the system changes would silently fail.
 
 4. **The modules are loaded.** The script uses dot-sourcing (`. "path\to\file.ps1"`) to load all five module files into its own memory. Think of it like importing recipes into a cookbook — from this point on, `menu.ps1` can call the functions defined in those files.
 
@@ -151,22 +151,24 @@ wt.exe powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0_core\menu.
 
 This is the main brain of the entire project. It has four sections.
 
-#### Section 1 — Elevation Check (Lines 2–11)
+#### Section 1 — Elevation Check (Lines 2–8)
 
 ```powershell
 if (-not ([Security.Principal.WindowsPrincipal]...IsInRole(...Administrator))) {
-    Start-Process wt.exe -ArgumentList "powershell.exe ... -File `"$me`"" -Verb RunAs
+    Write-Host "  This script must be run as Administrator." -ForegroundColor Red
+    Read-Host '  Press Enter to close'
     exit
 }
 ```
 
 This checks whether the current process is running as Administrator. The method it uses is built into .NET and is the standard, reliable way to check on Windows.
 
-- If you're NOT an admin: it re-launches the same script using `-Verb RunAs`, which is what causes the UAC "Do you want to allow this app to make changes?" popup. After triggering the re-launch, it immediately exits — so you never end up with two copies running.
-- If the UAC launch fails (the `try/catch` block): it prints an error in red and waits for you to press Enter before closing.
+- If you're NOT an admin: it prints an error in red, waits for you to press Enter, and exits. There is no automatic re-launch — you must right-click `Game Optimizer.bat` and choose "Run as administrator" (or use the Task Scheduler / WMI auto-launch, which requests elevation through the scheduled task's `RunLevel Highest` setting).
 - If you ARE already an admin: it skips all of this and continues.
 
 **Why this matters:** Every module that changes a system setting requires admin rights. Without this check, the modules would fail silently or throw confusing errors.
+
+**Note — why auto-elevation was removed:** An earlier version re-launched `powershell.exe` with `-Verb RunAs` to trigger a UAC prompt automatically. This worked but always opened a plain `conhost.exe` window instead of Windows Terminal. A subsequent attempt to elevate via `wt.exe -Verb RunAs` caused an infinite UAC loop on some systems (each relaunched window would fail the elevation check and spawn another). Removing auto-elevation sidesteps both problems cleanly.
 
 #### Section 2 — Module Loading (Lines 16–21)
 

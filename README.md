@@ -75,6 +75,38 @@ Self-elevation was removed. If the script is launched without admin rights it ex
 
 The previous auto-elevation approach re-launched `powershell.exe` with `-Verb RunAs`, which worked but always opened a plain conhost window instead of Windows Terminal. An earlier attempt to elevate via `wt.exe` caused an **infinite UAC loop** on some systems, locking user accounts. Removing auto-elevation sidesteps both problems cleanly.
 
+### `Get-SettingsAlert` runs expensive operations on every menu redraw
+
+Every loop iteration (every keypress) calls `Get-Module -ListAvailable -Name AudioDeviceCmdlets` (filesystem scan), `powercfg /list` (subprocess), and `Get-MpComputerStatus` (WMI query). These results don't change between keypresses, so the repeated work causes perceptible lag on each redraw.
+
+### `finally` cleanup block has no per-step error handling
+
+If any one of the five cleanup calls in the `finally` block throws — `Set-Explorer`, `Set-PowerPlan`, `Set-Defender`, `Set-SysMain`, `Set-NetworkThrottle` — the remaining calls are skipped. On a crash or force-close, this can leave Defender disabled and network throttle at gaming values with no further recovery attempt.
+
+### Network Throttling restores to hardcoded defaults, not original values
+
+When game mode is disabled, `NetworkThrottlingIndex` is always written back to `10` and `SystemResponsiveness` to `20`. If the user had non-default values before enabling game mode, those values are permanently overwritten. The module has no mechanism to save the pre-existing values.
+
+### Explorer kill loop has no timeout
+
+After `taskkill /f /im explorer.exe`, the module polls until the process disappears:
+```powershell
+while (Get-Process explorer -ErrorAction SilentlyContinue) { Start-Sleep -Milliseconds 100 }
+```
+If Explorer refuses to terminate (e.g. blocked by an open file dialog), this loop never exits and the script hangs indefinitely.
+
+### WMI setup and uninstall use deprecated cmdlets
+
+`game-mode-wmi-setup.ps1` and `game-mode-wmi-uninstall.ps1` use `Set-WmiInstance`, `Get-WmiObject`, and `Remove-WmiObject`, which are deprecated and unavailable in PowerShell 7+. The scripts work on Windows PowerShell 5.1 (what `powershell.exe` invokes) but would break if migrated to `pwsh.exe`. The CIM equivalents (`New-CimInstance`, `Get-CimInstance`, `Remove-CimInstance`) are the current replacements and work in both versions.
+
+### Audio device picker is limited to 9 devices
+
+The audio device menu in Settings reads a single keypress and parses it as a digit character. Only devices numbered 1–9 are reachable; any device at index 10 or higher cannot be selected.
+
+### `Set-SysMain` can fail if the service is set to Disabled
+
+`Start-Service SysMain` throws if SysMain's startup type is `Disabled` (as opposed to merely stopped). The error propagates to the menu's `catch` block and aborts the entire disable-game-mode action, leaving the other four modules in their gaming state.
+
 ## To-do
 
 - [ ] **Customize menu** — let the user toggle which modules are active (Power Plan, Explorer, Defender, SysMain, Network Throttling) before applying, accessible via a `[C] Customize` key in the main menu
