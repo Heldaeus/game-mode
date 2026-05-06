@@ -55,6 +55,56 @@ function Show-AudioDevice {
     }
 }
 
+function Show-TamperProtection {
+    Start-Process "windowsdefender://threatsettings"
+
+    $lastState = $null
+
+    while ($true) {
+        $tamperOn = (Get-MpComputerStatus).IsTamperProtected
+        $state    = if ($tamperOn) { 'Enabled' } else { 'Disabled' }
+
+        if ($state -ne $lastState) {
+            [Console]::Clear()
+
+            $dash = ' ' + ([string][char]0x2550 * 35)
+            Write-Host ""
+            Write-Host $dash -ForegroundColor DarkGray
+            Write-Host ""
+            Write-Host "   TAMPER PROTECTION" -ForegroundColor White
+            Write-Host ""
+            Write-Host $dash -ForegroundColor DarkGray
+            Write-Host ""
+            Write-Host "  Status: " -NoNewline
+            if ($tamperOn) {
+                Write-Host $state -ForegroundColor Red
+                Write-Host ""
+                Write-Host "  Turn off Tamper Protection in the" -ForegroundColor Gray
+                Write-Host "  Windows Security window that opened." -ForegroundColor Gray
+            } else {
+                Write-Host $state -ForegroundColor Green
+            }
+            Write-Host ""
+            Write-Host "  " -NoNewline; Write-Host "[B]" -NoNewline -ForegroundColor DarkGray; Write-Host " Back"
+            Write-Host ""
+
+            $lastState = $state
+        }
+
+        if (-not $tamperOn) {
+            Start-Sleep -Milliseconds 800
+            return
+        }
+
+        if ([Console]::KeyAvailable) {
+            $key = [Console]::ReadKey($true)
+            if ($key.KeyChar -eq 'b' -or $key.KeyChar -eq 'B') { return }
+        }
+
+        Start-Sleep -Milliseconds 500
+    }
+}
+
 function Show-Settings {
     $inSettings = $true
     $hasAudio   = [bool](Get-Module -ListAvailable -Name AudioDeviceCmdlets)
@@ -109,7 +159,7 @@ function Show-Settings {
         if ($hasAudio -and $key.KeyChar -eq '1') {
             Show-AudioDevice
         } elseif ($tamperOn -and ($key.KeyChar -eq 't' -or $key.KeyChar -eq 'T')) {
-            Start-Process "windowsdefender://threatsettings"
+            Show-TamperProtection
         } elseif (-not $hasAudio -and ($key.KeyChar -eq 'i' -or $key.KeyChar -eq 'I')) {
             [Console]::Clear()
             Write-Host ""

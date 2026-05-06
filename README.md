@@ -82,9 +82,9 @@ The `*` next to `[S] Settings` is computed once at startup and once on return fr
 
 `Get-SettingsAlert` (which checks Tamper Protection via `Get-MpComputerStatus`) runs before the `try/catch` that wraps the menu loop. If the WMI service is unavailable, the script exits with a raw PowerShell error instead of the "Press Enter to close" prompt.
 
-### `[T]` gives no instruction to return after opening Windows Security
+### ~~`[T]` gives no instruction to return after opening Windows Security~~ *(fixed)*
 
-Pressing `[T]` in Settings opens Windows Security to the Tamper Protection toggle but leaves no prompt in the terminal telling the user to come back. The Settings screen does self-correct on the next keypress — it rechecks `IsTamperProtected` at the top of each loop iteration — but the user has no visual cue that this will happen.
+Pressing `[T]` now opens a dedicated Tamper Protection screen that shows the current status and polls every 500ms. Once Tamper Protection is disabled in Windows Security, the status updates immediately and the script returns to Settings automatically.
 
 ### No auto-elevation — script must be run as Administrator
 
