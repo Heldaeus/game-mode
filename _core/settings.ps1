@@ -85,8 +85,8 @@ function Show-TamperProtection {
                 Write-Host $state -ForegroundColor Green
                 Write-Host ""
                 Write-Host "  Note: this script will not re-enable" -ForegroundColor DarkGray
-                Write-Host "  Tamper Protection automatically. Re-enable" -ForegroundColor DarkGray
-                Write-Host "  it manually when done gaming." -ForegroundColor DarkGray
+                Write-Host "  Tamper Protection automatically. Enable" -ForegroundColor DarkGray
+                Write-Host "  and disable it at your own discretion." -ForegroundColor DarkGray
             }
             Write-Host ""
             Write-Host "  " -NoNewline; Write-Host "[B]" -NoNewline -ForegroundColor DarkGray; Write-Host " Back"
