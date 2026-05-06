@@ -418,6 +418,8 @@ function Set-Defender([bool]$disable) {
 
 **What can go wrong:** On Windows 11, Microsoft introduced Tamper Protection, which can block third-party changes to Defender settings, including this script. If Tamper Protection is enabled, `Set-MpPreference` will fail silently or throw an error. To allow this script to work, Tamper Protection must be turned off in Windows Security → Virus & Threat Protection → Manage Settings.
 
+**Why the script can't automate this for you:** Tamper Protection is deliberately designed so that no script or program can toggle it — not even a PowerShell command running as Administrator. Microsoft blocks `Set-MpPreference` from touching it entirely. The only way to change it is through the Windows Security UI, where a human has to click the toggle. This is a security boundary Windows enforces by design, not a limitation of this script. That is also why the script does not re-enable Tamper Protection when game mode is disabled — it simply has no way to do so.
+
 ---
 
 ### `SysMain/_module.ps1`
@@ -847,7 +849,7 @@ Windows Terminal opens on your screen with the Game Mode menu
 
 **Session 0:** An invisible Windows session used for background services running as SYSTEM. Applications launched in Session 0 do not appear on the interactive desktop — this is why WMI consumers can't open windows directly.
 
-**Tamper Protection:** A Windows Security feature that prevents external tools (including PowerShell) from changing Defender's settings. Must be turned off before this script can disable real-time protection.
+**Tamper Protection:** A Windows Security feature that prevents external tools (including PowerShell) from changing Defender's settings. Must be turned off before this script can disable real-time protection. It cannot be toggled programmatically — not even by a script running as Administrator. The only way to change it is through the Windows Security UI.
 
 **UAC (User Account Control):** The Windows security feature that shows a "Do you want to allow this app to make changes to your device?" popup before allowing elevated operations.
 
