@@ -67,13 +67,9 @@ function Show-TamperProtection {
         if ($state -ne $lastState) {
             [Console]::Clear()
 
-            $dash = ' ' + ([string][char]0x2550 * 35)
             Write-Host ""
-            Write-Host $dash -ForegroundColor DarkGray
+            Write-Host "  TAMPER PROTECTION" -ForegroundColor White
             Write-Host ""
-            Write-Host "   TAMPER PROTECTION" -ForegroundColor White
-            Write-Host ""
-            Write-Host $dash -ForegroundColor DarkGray
             Write-Host ""
             Write-Host "  Status: " -NoNewline
             if ($tamperOn) {
@@ -83,11 +79,11 @@ function Show-TamperProtection {
                 Write-Host "  Windows Security window that opened." -ForegroundColor Gray
             } else {
                 Write-Host $state -ForegroundColor Green
-                Write-Host ""
-                Write-Host "  Note: this script will not re-enable" -ForegroundColor DarkGray
-                Write-Host "  Tamper Protection automatically. Enable" -ForegroundColor DarkGray
-                Write-Host "  and disable it at your own discretion." -ForegroundColor DarkGray
             }
+            Write-Host ""
+            Write-Host "  Note: this script will not re-enable" -ForegroundColor DarkGray
+            Write-Host "  Tamper Protection automatically. Enable" -ForegroundColor DarkGray
+            Write-Host "  and disable it at your own discretion." -ForegroundColor DarkGray
             Write-Host ""
             Write-Host "  " -NoNewline; Write-Host "[B]" -NoNewline -ForegroundColor DarkGray; Write-Host " Back"
             Write-Host ""
