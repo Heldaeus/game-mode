@@ -41,7 +41,8 @@ function Write-Art ([string]$line) {
 
 # ── Menu loop ─────────────────────────────────────────────────────────────────
 
-$running = $true
+$running      = $true
+$sentinelPath = "$root\_core\.game-mode-active"
 
 function Get-SettingsAlert {
     (-not [bool](Get-Module -ListAvailable -Name AudioDeviceCmdlets)) -or
@@ -105,12 +106,14 @@ while ($running) {
             Set-Defender $true
             Set-SysMain $true
             Set-NetworkThrottle $true
+            Set-Content $sentinelPath -Value '' -Force
         } else {
             Set-Explorer $false
             Set-PowerPlan 'Balanced'
             Set-Defender $false
             Set-SysMain $false
             Set-NetworkThrottle $false
+            Remove-Item $sentinelPath -Force -ErrorAction SilentlyContinue
         }
     } elseif ($key.KeyChar -eq 's' -or $key.KeyChar -eq 'S') {
         . "$root\_core\settings.ps1"
@@ -127,10 +130,11 @@ while ($running) {
 } finally {
     $isOn = ((Get-ExplorerState) -eq 'Stopped') -and ((Get-PowerPlanState) -eq 'Ultimate Performance')
     if ($isOn) {
-        Set-Explorer $false
-        Set-PowerPlan 'Balanced'
-        Set-Defender $false
-        Set-SysMain $false
-        Set-NetworkThrottle $false
+        try { Set-Explorer $false }       catch {}
+        try { Set-PowerPlan 'Balanced' }  catch {}
+        try { Set-Defender $false }       catch {}
+        try { Set-SysMain $false }        catch {}
+        try { Set-NetworkThrottle $false } catch {}
     }
+    Remove-Item $sentinelPath -Force -ErrorAction SilentlyContinue
 }

@@ -19,6 +19,9 @@ This document explains every file in the project in plain English. It is written
    - [Network Throttling/_module.ps1](#network-throttling_moduleps1)
    - [game-mode-wmi-setup.ps1](#game-mode-wmi-setupps1)
    - [game-mode-wmi-uninstall.ps1](#game-mode-wmi-uninstallps1)
+   - [_core/recovery.ps1](#_corerecoveryps1)
+   - [game-mode-recovery-setup.ps1](#game-mode-recovery-setupps1)
+   - [game-mode-recovery-uninstall.ps1](#game-mode-recovery-uninstallps1)
 5. [What "Game Mode ON" Actually Does to Your PC](#5-what-game-mode-on-actually-does-to-your-pc)
 6. [The Auto-Restore Safety Net](#6-the-auto-restore-safety-net)
 7. [The WMI Auto-Launch System](#7-the-wmi-auto-launch-system)
@@ -64,29 +67,38 @@ The tool is designed with one important safety rule: **it always puts things bac
 ```
 game-mode/
 │
-├── Game Optimizer.bat          ← The file you double-click to start everything
+├── Game Optimizer.bat               ← The file you double-click to start everything
 │
 ├── _core/
-│   └── menu.ps1                ← The brain: draws the UI, reads your keypresses,
-│                                  calls the modules, handles cleanup on exit
+│   ├── menu.ps1                     ← The brain: draws the UI, reads your keypresses,
+│   │                                   calls the modules, handles cleanup on exit
+│   ├── settings.ps1                 ← Settings screen (audio device, power plan
+│   │                                   provisioning, Tamper Protection warning)
+│   ├── recovery.ps1                 ← Crash recovery: restores settings at logon if
+│   │                                   the script was killed while game mode was on
+│   └── .game-mode-active            ← Sentinel file (created on enable, deleted on
+│                                       disable; its presence means a crash recovery
+│                                       may be needed — not tracked by git)
 │
 ├── Explorer/
-│   └── _module.ps1             ← Kills/restarts Windows Explorer (taskbar, desktop)
+│   └── _module.ps1                  ← Kills/restarts Windows Explorer (taskbar, desktop)
 │
 ├── Power Plan/
-│   └── _module.ps1             ← Switches between Balanced and Ultimate Performance
+│   └── _module.ps1                  ← Switches between Balanced and Ultimate Performance
 │
 ├── Defender/
-│   └── _module.ps1             ← Turns Windows Defender real-time protection on/off
+│   └── _module.ps1                  ← Turns Windows Defender real-time protection on/off
 │
 ├── SysMain/
-│   └── _module.ps1             ← Stops/starts the SysMain (Superfetch) service
+│   └── _module.ps1                  ← Stops/starts the SysMain (Superfetch) service
 │
 ├── Network Throttling/
-│   └── _module.ps1             ← Edits registry keys to disable/restore network throttling
+│   └── _module.ps1                  ← Edits registry keys to disable/restore network throttling
 │
-├── game-mode-wmi-setup.ps1     ← Optional: makes Game Mode auto-open when Steam starts
-└── game-mode-wmi-uninstall.ps1 ← Optional: undoes what wmi-setup.ps1 did
+├── game-mode-wmi-setup.ps1          ← Optional: makes Game Mode auto-open when Steam starts
+├── game-mode-wmi-uninstall.ps1      ← Optional: undoes what wmi-setup.ps1 did
+├── game-mode-recovery-setup.ps1     ← Optional: registers logon recovery task for crash safety
+└── game-mode-recovery-uninstall.ps1 ← Optional: removes the logon recovery task
 ```
 
 Each `_module.ps1` file contains exactly two functions: one that **reads the current state** of that setting (is it on or off right now?), and one that **changes it**.
@@ -112,13 +124,13 @@ Here is the full journey from double-click to your screen going back to normal, 
 7. **The script waits for a keypress** using `[Console]::ReadKey($true)`. The `$true` means the keypress is not echoed to the screen — you press a key and nothing shows up, the screen just reacts.
 
 8. **If you press Enter:**
-   - If game mode is currently OFF → it calls all five "enable" functions one by one.
-   - If game mode is currently ON → it calls all five "disable" functions one by one.
+   - If game mode is currently OFF → it calls all five "enable" functions one by one, then writes a small sentinel file (`_core\.game-mode-active`) to disk to record that game mode is now active.
+   - If game mode is currently ON → it calls all five "disable" functions one by one, then deletes the sentinel file.
    - Either way, the loop immediately repeats, which clears and redraws the screen, updating the status.
 
 9. **If you press Q:** the loop variable `$running` is set to `false`, the loop ends.
 
-10. **The `finally` block runs.** This is a guaranteed cleanup step — it runs even if the script crashes. It checks if game mode is on, and if so, it turns everything off before the window closes.
+10. **The `finally` block runs.** This is a guaranteed cleanup step — it runs even if the script crashes mid-loop. It checks if game mode is on (Explorer stopped + power plan gaming), and if so, turns everything off with individual error handling per step so a failure in one doesn't skip the rest. It also deletes the sentinel file.
 
 ---
 
@@ -226,7 +238,7 @@ This waits indefinitely for exactly one key. `$true` suppresses the echo. The re
 - `$key.Key` — the key name (e.g., `Enter`, `Escape`, `UpArrow`)
 - `$key.KeyChar` — the character typed (e.g., `'q'`, `'Q'`, `'1'`)
 
-**The toggle logic (Lines 93–109):**
+**The toggle logic:**
 
 ```powershell
 if ($key.Key -eq [ConsoleKey]::Enter) {
@@ -236,21 +248,41 @@ if ($key.Key -eq [ConsoleKey]::Enter) {
         Set-Defender $true        # disable real-time protection
         Set-SysMain $true         # stop the service
         Set-NetworkThrottle $true # disable throttling
+        Set-Content $sentinelPath -Value '' -Force   # mark game mode active
     } else {
         Set-Explorer $false       # restart explorer
         Set-PowerPlan 'Balanced'
         Set-Defender $false       # re-enable protection
         Set-SysMain $false        # start the service
         Set-NetworkThrottle $false
+        Remove-Item $sentinelPath -Force -ErrorAction SilentlyContinue
     }
 }
 ```
 
 Each `Set-*` function is defined in its corresponding module. They're called in sequence, not in parallel — the script waits for each one to finish before calling the next.
 
-**The `catch` block (Lines 112–115):** If anything in the `try` block throws an unexpected error, execution jumps here. The error message is printed in red and the window waits for Enter before closing, so you can read the error.
+`$sentinelPath` points to `_core\.game-mode-active`. Writing it after the five enable calls (and deleting it after the five disable calls) creates a durable record on disk of whether game mode is active. This survives a process kill or machine crash — unlike an in-memory variable, which vanishes when the process dies.
 
-**The `finally` block (Lines 116–124):** This block runs no matter what — whether the loop ended normally (Q was pressed), an error was caught, or even if the script was killed by a crash. It checks if game mode is currently on, and if so, it restores everything. This is the safety net that prevents you from being stuck without Explorer or Defender if something goes wrong.
+**The `catch` block:** If anything in the `try` block throws an unexpected error, execution jumps here. The error message is printed in red and the window waits for Enter before closing, so you can read the error.
+
+**The `finally` block:** This block runs no matter what — whether the loop ended normally (Q was pressed), an error was caught, or even if PowerShell is in the middle of shutting down (e.g., terminal window closed). It checks if game mode is currently on, and if so restores all five settings:
+
+```powershell
+finally {
+    $isOn = ((Get-ExplorerState) -eq 'Stopped') -and ((Get-PowerPlanState) -eq 'Ultimate Performance')
+    if ($isOn) {
+        try { Set-Explorer $false }        catch {}
+        try { Set-PowerPlan 'Balanced' }   catch {}
+        try { Set-Defender $false }        catch {}
+        try { Set-SysMain $false }         catch {}
+        try { Set-NetworkThrottle $false } catch {}
+    }
+    Remove-Item $sentinelPath -Force -ErrorAction SilentlyContinue
+}
+```
+
+Each cleanup call is wrapped in its own `try/catch` so a failure in one step (e.g. Defender blocked by Tamper Protection) does not cause the remaining steps to be skipped. The sentinel is deleted at the end regardless of whether `$isOn` was true — if game mode was already off there's nothing to delete, and the `-ErrorAction SilentlyContinue` makes that a no-op.
 
 ---
 
@@ -556,6 +588,61 @@ Every removal step is wrapped in an `if` check — if the object isn't found (al
 
 ---
 
+### `_core/recovery.ps1`
+
+This script is the counterpart to the `finally` block. Where `finally` handles the case where PowerShell is still running when something goes wrong, `recovery.ps1` handles the case where the process was killed outright — terminal force-closed, `taskkill` on PowerShell, or a hard machine crash — so `finally` never had a chance to run.
+
+It is not run by the user directly. It is invoked automatically by the `GameModeRecovery` scheduled task at logon (see `game-mode-recovery-setup.ps1` below).
+
+```powershell
+$sentinelPath = "$root\_core\.game-mode-active"
+if (-not (Test-Path $sentinelPath)) { exit 0 }
+
+# ... dot-source all modules ...
+
+if ((Get-ExplorerState) -ne 'Running') { try { Set-Explorer $false } catch {} }
+try { Set-PowerPlan 'Balanced' }   catch {}
+try { Set-Defender $false }        catch {}
+try { Set-SysMain $false }         catch {}
+try { Set-NetworkThrottle $false } catch {}
+
+Remove-Item $sentinelPath -Force -ErrorAction SilentlyContinue
+```
+
+**The sentinel check:** The very first thing the script does is look for `_core\.game-mode-active`. If that file doesn't exist, game mode was properly disabled before the script exited and there is nothing to recover — the script exits immediately. This check is what makes the task safe to run at every logon without doing anything on normal sessions.
+
+**The Explorer check:** When your machine reboots, Windows automatically relaunches Explorer as part of the login process. By the time the scheduled task fires, Explorer is almost certainly already running. Calling `Set-Explorer $false` (which starts Explorer) when it is already running would open a spare File Explorer window — not what we want. So the recovery script checks first: only start Explorer if it genuinely isn't running (which would only happen if recovery is triggered in the middle of a session rather than after a reboot).
+
+**Per-step error handling:** Same pattern as the hardened `finally` block — each call is wrapped individually so a failure in one setting doesn't abandon the others.
+
+---
+
+### `game-mode-recovery-setup.ps1`
+
+An optional, one-time setup script (like `game-mode-wmi-setup.ps1` for Steam). Run it once as Administrator to register the `GameModeRecovery` scheduled task.
+
+```powershell
+$action    = New-ScheduledTaskAction `
+                -Execute   "powershell.exe" `
+                -Argument  "-NoProfile -ExecutionPolicy Bypass -File `"...\recovery.ps1`""
+$trigger   = New-ScheduledTaskTrigger -AtLogOn -User $env:USERNAME
+$principal = New-ScheduledTaskPrincipal -UserId $env:USERNAME -LogonType Interactive -RunLevel Highest
+```
+
+Key points:
+
+- **Trigger — At Logon:** The task fires every time you log in to Windows. If no sentinel file is present (normal case), `recovery.ps1` exits in milliseconds and you never notice it ran.
+- **`RunLevel Highest`:** The task runs with full administrator privileges without requiring a UAC prompt, because the task was registered by an administrator. This is the same mechanism used by the `LaunchGameMode` task in the WMI setup.
+- **`-ExecutionPolicy Bypass`:** Same reason as in `Game Optimizer.bat` — allows the unsigned script to run without a policy error.
+
+---
+
+### `game-mode-recovery-uninstall.ps1`
+
+Removes the `GameModeRecovery` task registered by the setup script. Safe to run multiple times — if the task isn't found it prints a message and moves on.
+
+---
+
 ## 5. What "Game Mode ON" Actually Does to Your PC
 
 Here is what happens at the hardware and OS level when you press Enter to enable game mode.
@@ -612,37 +699,50 @@ This can reduce latency jitter in online games where Windows background traffic 
 
 ## 6. The Auto-Restore Safety Net
 
-The `finally` block in `menu.ps1` is the safety net:
+There are two layers of protection that restore system settings when the script exits while game mode is active. They cover different failure scenarios.
 
-```powershell
-finally {
-    $isOn = ((Get-ExplorerState) -eq 'Stopped') -and ((Get-PowerPlanState) -eq 'Ultimate Performance')
-    if ($isOn) {
-        Set-Explorer $false
-        Set-PowerPlan 'Balanced'
-        Set-Defender $false
-        Set-SysMain $false
-        Set-NetworkThrottle $false
-    }
-}
-```
+### Layer 1 — The `finally` block (in-process cleanup)
 
-A `finally` block in PowerShell runs in every exit scenario:
+A `finally` block in PowerShell runs in every exit scenario where the PowerShell process itself is still in control:
 - Normal exit (Q pressed)
-- Error/crash during execution
-- The window is closed with the X button
+- An unhandled error inside the menu loop
+- The terminal window closed with the X button (PowerShell gets a signal and runs `finally` before the host kills it)
 
-It checks the two state indicators. If game mode appears to be on, it restores everything. This means:
-- You never get stuck with Explorer killed permanently
-- You never get stuck with Defender off permanently
-- Closing the terminal window is as safe as pressing Q
+It checks the two state indicators — Explorer stopped and power plan gaming — and if both are true it restores all five settings. Each call is wrapped individually so a failure in one step does not cause the others to be skipped.
 
-**One edge case:** If the machine loses power or hard-crashes while game mode is on, the finally block cannot run. In that case, after reboot:
-- Explorer will restart normally (Windows auto-starts it)
-- Defender will be re-enabled (Windows Security monitors and re-enables it on boot)
-- SysMain will restart (it's set to auto-start)
-- Power plan will remain on Ultimate Performance — you'd need to change it back manually in Power Settings
-- Network throttling registry keys will remain at gaming values — you'd need to run the script and toggle off, or manually edit the registry
+**What `finally` cannot cover:** If the PowerShell process is killed with no warning (e.g. `taskkill /f`, a machine crash, or a power outage), Windows terminates it immediately with no opportunity to run any cleanup code.
+
+### Layer 2 — Sentinel file + logon recovery task (crash/kill cleanup)
+
+This layer covers the cases that `finally` cannot.
+
+**The sentinel file (`_core\.game-mode-active`):**
+
+When game mode is enabled, the script writes a small empty file to disk. When game mode is disabled — whether by the user pressing Enter, pressing Q, or by the `finally` block — the file is deleted. If the process is killed or the machine crashes while game mode is on, the file remains on disk after reboot.
+
+The sentinel is the durable record that survives any termination scenario. It is not tracked by git (listed in `.gitignore`), so it only exists when game mode is actively on.
+
+**The `GameModeRecovery` scheduled task (opt-in):**
+
+If you have run `game-mode-recovery-setup.ps1`, a scheduled task fires at every logon. It runs `_core\recovery.ps1`, which:
+
+1. Checks for the sentinel file. If not found → exits immediately (nothing to recover).
+2. If found → restores all five settings with per-step error handling.
+3. Deletes the sentinel.
+
+The result: the next time you log in after a crash, your power plan is back to Balanced, Defender is re-enabled, SysMain is running, and network throttling is restored — automatically, before you even see your desktop.
+
+**What each layer covers:**
+
+| Scenario | `finally` runs? | Recovery task runs? |
+|---|---|---|
+| Q pressed (normal quit) | Yes | Sentinel deleted by `finally`, task does nothing |
+| Terminal window X button | Yes (usually) | Sentinel deleted by `finally`, task does nothing |
+| Terminal force-killed (`taskkill /f`) | No | Yes, at next logon |
+| Machine crash / BSOD | No | Yes, at next logon |
+| Power outage | No | Yes, at next logon |
+
+Explorer is treated specially in the recovery task: since Windows auto-relaunches Explorer at logon, the task only calls `Set-Explorer` if Explorer is genuinely not running (which would only apply if recovery were triggered mid-session without a reboot).
 
 ---
 
@@ -707,10 +807,13 @@ Windows Terminal opens on your screen with the Game Mode menu
 
 **Cause 2:** The WMI service encountered an error. You can check the WMI event log in Event Viewer under `Applications and Services Logs → Microsoft → Windows → WMI-Activity → Operational`.
 
-### After a crash, network feels different / slower
+### After a crash, network feels different / slower (or power plan is wrong)
 
-**Cause:** The `finally` block didn't run (hard crash or power loss), so the registry keys are still at gaming values.  
-**Fix:** Open the Game Optimizer normally, confirm it shows "ENABLED" status, then press Enter to disable it. All registry keys will be restored.
+**Cause:** The `finally` block didn't run (hard crash, power loss, or force-kill), so some settings are still at gaming values.
+
+**If you have the recovery task installed (`game-mode-recovery-setup.ps1`):** It ran at your next logon and already restored everything. The settings should be back to normal.
+
+**If you don't have the recovery task:** Open the Game Optimizer normally, confirm it shows "ENABLED" status, then press Enter to disable it. All settings will be restored. If the Game Optimizer itself won't open (e.g. Explorer is still dead), press `Ctrl+Shift+Esc` to open Task Manager, click "Run new task," type `explorer`, and press Enter — then launch the optimizer normally.
 
 ---
 

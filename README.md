@@ -34,6 +34,23 @@ Double-click **`Game Optimizer.bat`**. It opens in Windows Terminal and self-ele
 - **Enter** — toggle all optimizations on or off
 - **Q** — quit and auto-restore defaults if game mode is active
 
+## Crash recovery
+
+If the optimizer exits unexpectedly while game mode is active (terminal killed, machine crash, power loss), system settings are left in their gaming state. To auto-restore them at next logon, run the recovery setup script once:
+
+```powershell
+# Run as Administrator
+.\game-mode-recovery-setup.ps1
+```
+
+This registers a `GameModeRecovery` scheduled task that fires at logon, checks for a sentinel file written when game mode is enabled, and restores all settings if found. The sentinel is deleted on any clean exit, so the task does nothing on normal sessions.
+
+To remove it:
+
+```powershell
+.\game-mode-recovery-uninstall.ps1
+```
+
 ## Auto-launch with Steam
 
 To have Game Mode open automatically whenever Steam starts, run the setup script once:
@@ -79,9 +96,9 @@ The previous auto-elevation approach re-launched `powershell.exe` with `-Verb Ru
 
 Every loop iteration (every keypress) calls `Get-Module -ListAvailable -Name AudioDeviceCmdlets` (filesystem scan), `powercfg /list` (subprocess), and `Get-MpComputerStatus` (WMI query). These results don't change between keypresses, so the repeated work causes perceptible lag on each redraw.
 
-### `finally` cleanup block has no per-step error handling
+### ~~`finally` cleanup block has no per-step error handling~~ *(fixed)*
 
-If any one of the five cleanup calls in the `finally` block throws — `Set-Explorer`, `Set-PowerPlan`, `Set-Defender`, `Set-SysMain`, `Set-NetworkThrottle` — the remaining calls are skipped. On a crash or force-close, this can leave Defender disabled and network throttle at gaming values with no further recovery attempt.
+Each of the five cleanup calls in `finally` is now wrapped in its own `try/catch`, so a failure in one step no longer skips the rest. The logon recovery task (`game-mode-recovery-setup.ps1`) covers the crash/force-kill case where `finally` never runs at all.
 
 ### Network Throttling restores to hardcoded defaults, not original values
 
