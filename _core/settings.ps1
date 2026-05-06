@@ -85,6 +85,8 @@ function Show-TamperProtection {
             Write-Host "  Tamper Protection automatically. Enable" -ForegroundColor DarkGray
             Write-Host "  and disable it at your own discretion." -ForegroundColor DarkGray
             Write-Host ""
+            Write-Host "  Read HOW-IT-WORKS to learn why." -ForegroundColor DarkGray
+            Write-Host ""
             Write-Host "  " -NoNewline; Write-Host "[B]" -NoNewline -ForegroundColor DarkGray; Write-Host " Back"
             Write-Host ""
 
