@@ -12,6 +12,7 @@ This document explains every file in the project in plain English. It is written
 4. [File-by-File Breakdown](#4-file-by-file-breakdown)
    - [Game Optimizer.bat](#game-optimizerbat)
    - [_core/menu.ps1](#_coremenups1)
+   - [_core/settings.ps1](#_coresettingsps1)
    - [Explorer/_module.ps1](#explorer_moduleps1)
    - [Power Plan/_module.ps1](#power-plan_moduleps1)
    - [Defender/_module.ps1](#defender_moduleps1)
@@ -72,8 +73,9 @@ game-mode/
 ├── _core/
 │   ├── menu.ps1                     ← The brain: draws the UI, reads your keypresses,
 │   │                                   calls the modules, handles cleanup on exit
-│   ├── settings.ps1                 ← Settings screen (audio device, power plan
-│   │                                   provisioning, Tamper Protection warning)
+│   ├── settings.ps1                 ← Settings screen: audio device switcher,
+│   │                                   Configure Game Mode (per-module on/off toggles),
+│   │                                   power plan provisioning, Tamper Protection
 │   ├── recovery.ps1                 ← Crash recovery: restores settings at logon if
 │   │                                   the script was killed while game mode was on
 │   └── .game-mode-active            ← Sentinel file (created on enable, deleted on
@@ -115,17 +117,17 @@ Here is the full journey from double-click to your screen going back to normal, 
 
 3. **`menu.ps1` wakes up.** The first thing it does is check: *am I running as Administrator?* If not, it prints an error in red and exits immediately — you must re-launch the `.bat` file as Administrator manually. Without admin, most of the system changes would silently fail.
 
-4. **The modules are loaded.** The script uses dot-sourcing (`. "path\to\file.ps1"`) to load all five module files into its own memory. Think of it like importing recipes into a cookbook — from this point on, `menu.ps1` can call the functions defined in those files.
+4. **The modules are loaded.** The script uses dot-sourcing (`. "path\to\file.ps1"`) to load all five module files and `_core\settings.ps1` into its own memory. Think of it like importing recipes into a cookbook — from this point on, `menu.ps1` can call the functions defined in those files. Loading `settings.ps1` also initializes the `$script:ModuleEnabled` table, which records which modules the user has configured to be active (all five are on by default).
 
 5. **The menu loop begins.** The script enters a loop that keeps running until you press Q.
 
-6. **On every loop iteration, the screen is cleared and redrawn.** Before drawing, it checks two things: is Explorer stopped? And is the power plan set to Ultimate Performance? If both answers are yes, game mode is considered ON. The status badge and the button label update accordingly.
+6. **On every loop iteration, the screen is cleared and redrawn.** Before drawing, it checks the state of whichever modules the user has enabled. For Explorer (if enabled): is it stopped? For Power Plan (if enabled): is it set to Ultimate Performance? If all enabled indicators agree game mode is on, the status is ON. The status badge and the button label update accordingly.
 
 7. **The script waits for a keypress** using `[Console]::ReadKey($true)`. The `$true` means the keypress is not echoed to the screen — you press a key and nothing shows up, the screen just reacts.
 
 8. **If you press Enter:**
-   - If game mode is currently OFF → it calls all five "enable" functions one by one, then writes a small sentinel file (`_core\.game-mode-active`) to disk to record that game mode is now active.
-   - If game mode is currently ON → it calls all five "disable" functions one by one, then deletes the sentinel file.
+   - If game mode is currently OFF → it calls the "enable" function for each module that is toggled on in Configure Game Mode, then writes a small sentinel file (`_core\.game-mode-active`) to disk to record that game mode is now active.
+   - If game mode is currently ON → it calls the "disable" function for each enabled module, then deletes the sentinel file.
    - Either way, the loop immediately repeats, which clears and redraws the screen, updating the status.
 
 9. **If you press Q:** the loop variable `$running` is set to `false`, the loop ends.
@@ -182,13 +184,14 @@ This checks whether the current process is running as Administrator. The method 
 
 **Note — why auto-elevation was removed:** An earlier version re-launched `powershell.exe` with `-Verb RunAs` to trigger a UAC prompt automatically. This worked but always opened a plain `conhost.exe` window instead of Windows Terminal. A subsequent attempt to elevate via `wt.exe -Verb RunAs` caused an infinite UAC loop on some systems (each relaunched window would fail the elevation check and spawn another). Removing auto-elevation sidesteps both problems cleanly.
 
-#### Section 2 — Module Loading (Lines 16–21)
+#### Section 2 — Module Loading
 
 ```powershell
 $root = Split-Path (Split-Path $PSCommandPath -Parent) -Parent
 . "$root\Explorer\_module.ps1"
 . "$root\Power Plan\_module.ps1"
 ...
+. "$root\_core\settings.ps1"
 ```
 
 `$PSCommandPath` is a built-in variable that contains the full path to the currently running script file. `Split-Path ... -Parent` takes that path and strips off the last component (like going "up" one folder).
@@ -196,6 +199,8 @@ $root = Split-Path (Split-Path $PSCommandPath -Parent) -Parent
 Since `menu.ps1` is in `_core\`, one `Split-Path` gives us `_core\` and the second gives us the project root. That root path is stored in `$root`.
 
 The `. "$root\Explorer\_module.ps1"` lines use **dot-sourcing**. The leading dot means: run this file and bring everything it defines into the current scope. Without the dot, the functions defined inside those files would be invisible to `menu.ps1`.
+
+`settings.ps1` is dot-sourced here at startup (not lazily on demand) so that the `$script:ModuleEnabled` table it defines is available immediately — before the first toggle can occur.
 
 **What can go wrong:** If any module file is missing or has a typo in it, the dot-source fails and the entire script crashes before the menu even draws. The error will say something like "file not found" or show a syntax error from the broken module.
 
@@ -226,9 +231,18 @@ try {
 }
 ```
 
-**The state detection:** Two modules are used to determine whether game mode is currently on — Explorer and Power Plan. These two were chosen because they are reliable, visible indicators. Defender and SysMain are treated as "side effects" — they get toggled along with the others, but the script doesn't check their state to decide whether game mode is "on."
+**The state detection:** Explorer and Power Plan are used as the reliable visible indicators of game mode state. Defender, SysMain, and Network Throttling are treated as "side effects" — they get toggled along with the others, but the script doesn't check their state to decide whether game mode is "on."
 
-The logic is: if Explorer is stopped AND the power plan is Ultimate Performance, then game mode is considered ON. Both conditions must be true. If only one is true (which shouldn't happen under normal use), the menu will show DISABLED.
+The check is conditional on what the user has enabled in Configure Game Mode:
+
+```powershell
+$indicators = @()
+if ($script:ModuleEnabled['Explorer'])   { $indicators += (Get-ExplorerState) -eq 'Stopped' }
+if ($script:ModuleEnabled['Power Plan']) { $indicators += (Get-PowerPlanState) -eq 'Ultimate Performance' }
+$on = $indicators.Count -gt 0 -and ($indicators -notcontains $false)
+```
+
+All enabled indicators must agree that game mode is on. If both Explorer and Power Plan are disabled in Configure Game Mode, `$indicators` is empty and the menu always shows DISABLED.
 
 **The keypress capture:**
 ```powershell
@@ -243,24 +257,24 @@ This waits indefinitely for exactly one key. `$true` suppresses the echo. The re
 ```powershell
 if ($key.Key -eq [ConsoleKey]::Enter) {
     if (-not $on) {
-        Set-Explorer $true        # kill explorer
-        Set-PowerPlan 'Ultimate'
-        Set-Defender $true        # disable real-time protection
-        Set-SysMain $true         # stop the service
-        Set-NetworkThrottle $true # disable throttling
-        Set-Content $sentinelPath -Value '' -Force   # mark game mode active
+        if ($script:ModuleEnabled['Explorer'])           { Set-Explorer $true }
+        if ($script:ModuleEnabled['Power Plan'])         { Set-PowerPlan 'Ultimate' }
+        if ($script:ModuleEnabled['Defender'])           { Set-Defender $true }
+        if ($script:ModuleEnabled['SysMain'])            { Set-SysMain $true }
+        if ($script:ModuleEnabled['Network Throttling']) { Set-NetworkThrottle $true }
+        Set-Content $sentinelPath -Value '' -Force
     } else {
-        Set-Explorer $false       # restart explorer
-        Set-PowerPlan 'Balanced'
-        Set-Defender $false       # re-enable protection
-        Set-SysMain $false        # start the service
-        Set-NetworkThrottle $false
+        if ($script:ModuleEnabled['Explorer'])           { Set-Explorer $false }
+        if ($script:ModuleEnabled['Power Plan'])         { Set-PowerPlan 'Balanced' }
+        if ($script:ModuleEnabled['Defender'])           { Set-Defender $false }
+        if ($script:ModuleEnabled['SysMain'])            { Set-SysMain $false }
+        if ($script:ModuleEnabled['Network Throttling']) { Set-NetworkThrottle $false }
         Remove-Item $sentinelPath -Force -ErrorAction SilentlyContinue
     }
 }
 ```
 
-Each `Set-*` function is defined in its corresponding module. They're called in sequence, not in parallel — the script waits for each one to finish before calling the next.
+Each `Set-*` function is defined in its corresponding module and is only called if that module is enabled in `$script:ModuleEnabled`. They're called in sequence — the script waits for each one to finish before calling the next.
 
 `$sentinelPath` points to `_core\.game-mode-active`. Writing it after the five enable calls (and deleting it after the five disable calls) creates a durable record on disk of whether game mode is active. This survives a process kill or machine crash — unlike an in-memory variable, which vanishes when the process dies.
 
@@ -270,19 +284,75 @@ Each `Set-*` function is defined in its corresponding module. They're called in 
 
 ```powershell
 finally {
-    $isOn = ((Get-ExplorerState) -eq 'Stopped') -and ((Get-PowerPlanState) -eq 'Ultimate Performance')
+    $finalChecks = @()
+    if ($script:ModuleEnabled['Explorer'])   { $finalChecks += (Get-ExplorerState) -eq 'Stopped' }
+    if ($script:ModuleEnabled['Power Plan']) { $finalChecks += (Get-PowerPlanState) -eq 'Ultimate Performance' }
+    $isOn = $finalChecks.Count -gt 0 -and ($finalChecks -notcontains $false)
     if ($isOn) {
-        try { Set-Explorer $false }        catch {}
-        try { Set-PowerPlan 'Balanced' }   catch {}
-        try { Set-Defender $false }        catch {}
-        try { Set-SysMain $false }         catch {}
-        try { Set-NetworkThrottle $false } catch {}
+        if ($script:ModuleEnabled['Explorer'])           { try { Set-Explorer $false }          catch {} }
+        if ($script:ModuleEnabled['Power Plan'])         { try { Set-PowerPlan 'Balanced' }     catch {} }
+        if ($script:ModuleEnabled['Defender'])           { try { Set-Defender $false }          catch {} }
+        if ($script:ModuleEnabled['SysMain'])            { try { Set-SysMain $false }           catch {} }
+        if ($script:ModuleEnabled['Network Throttling']) { try { Set-NetworkThrottle $false }   catch {} }
     }
     Remove-Item $sentinelPath -Force -ErrorAction SilentlyContinue
 }
 ```
 
 Each cleanup call is wrapped in its own `try/catch` so a failure in one step (e.g. Defender blocked by Tamper Protection) does not cause the remaining steps to be skipped. The sentinel is deleted at the end regardless of whether `$isOn` was true — if game mode was already off there's nothing to delete, and the `-ErrorAction SilentlyContinue` makes that a no-op.
+
+---
+
+### `_core/settings.ps1`
+
+This file has two responsibilities: it defines the per-module configuration table, and it provides all the settings screens reachable via `[S]` in the main menu.
+
+#### `$script:ModuleEnabled`
+
+```powershell
+$script:ModuleEnabled = [ordered]@{
+    Explorer            = $true
+    'Power Plan'        = $true
+    Defender            = $true
+    SysMain             = $true
+    'Network Throttling' = $true
+}
+```
+
+This ordered hashtable is the source of truth for which modules participate in a game mode toggle. It is initialized when `settings.ps1` is dot-sourced at startup (all five enabled by default) and lives in `$script:` scope, meaning it persists for the entire session — changes made in Configure Game Mode are remembered until the script exits.
+
+`menu.ps1` reads this table on every toggle and every state-detection pass. `settings.ps1` writes to it when the user presses `[T]` on a module's config screen.
+
+#### `Show-ConfigureGameMode`
+
+Displays a numbered list of all five modules with their current ON/OFF status. Pressing a number opens that module's individual config screen (`Show-ModuleConfig`). The ON/OFF colors match the main menu: green for on, red for off.
+
+#### `Show-ModuleConfig`
+
+A generic screen that handles one module at a time. It shows:
+- The module name
+- "Included in Game Mode: Enabled / Disabled" in green or red
+- A short description of what the module does
+- `[T]` to toggle the module's entry in `$script:ModuleEnabled`
+- `[B]` to go back
+
+The screen redraws immediately on toggle so the status updates in place.
+
+#### `Show-Settings`
+
+The top-level settings screen. Shows:
+- `[1] Audio Device` — if AudioDeviceCmdlets is installed
+- `[C] Configure Game Mode` — always visible
+- `[B] Back`
+- Below the menu: yellow warning prompts for any missing prerequisites (AudioDeviceCmdlets, Ultimate Performance plan, Tamper Protection)
+
+#### `Show-AudioDevice`
+
+Lists all playback audio devices. The currently active device is highlighted in green. Pressing a number switches to that device using `Set-AudioDevice` from the AudioDeviceCmdlets module.
+
+#### `Show-TamperProtection`
+
+Opens the Windows Security threat settings page automatically, then polls `Get-MpComputerStatus` every 500ms. The status line updates live as Tamper Protection is toggled in the UI. Pressing `[B]` returns to Settings — the screen never exits on its own.
 
 ---
 

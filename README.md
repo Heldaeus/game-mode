@@ -16,7 +16,9 @@ Pressing Enter in the menu simultaneously applies (or reverts) the following:
 | **SysMain** (Superfetch) | Service stopped | Service started |
 | **Network Throttling** | Disabled (`NetworkThrottlingIndex = 0xFFFFFFFF`) | Restored to default |
 
-State is detected from Explorer and Power Plan — these are the reliable visible indicators. The menu shows the current state on each redraw and restores everything automatically when you quit or close the window.
+Each module can be individually enabled or disabled via **Settings → Configure Game Mode**, so you can choose which optimizations apply when you press Enter.
+
+State is detected from the enabled Explorer and Power Plan modules — these are the reliable visible indicators. The menu shows the current state on each redraw and restores everything automatically when you quit or close the window.
 
 ## Usage
 
@@ -31,7 +33,8 @@ Double-click **`Game Optimizer.bat`**. It opens in Windows Terminal and self-ele
   [Q] Quit
 ```
 
-- **Enter** — toggle all optimizations on or off
+- **Enter** — toggle all enabled optimizations on or off
+- **S** — open Settings (audio device, module configuration, Tamper Protection)
 - **Q** — quit and auto-restore defaults if game mode is active
 
 ## Crash recovery
@@ -84,7 +87,7 @@ The `*` next to `[S] Settings` is computed once at startup and once on return fr
 
 ### ~~`[T]` gives no instruction to return after opening Windows Security~~ *(fixed)*
 
-Pressing `[T]` now opens a dedicated Tamper Protection screen that shows the current status and polls every 500ms. Once Tamper Protection is disabled in Windows Security, the status updates immediately and the script returns to Settings automatically.
+Pressing `[T]` now opens a dedicated Tamper Protection screen that shows the current status and polls every 500ms. The status updates immediately when Tamper Protection is toggled in Windows Security. Press `[B]` to return to Settings.
 
 ### No auto-elevation — script must be run as Administrator
 
@@ -123,10 +126,6 @@ The audio device menu in Settings reads a single keypress and parses it as a dig
 ### `Set-SysMain` can fail if the service is set to Disabled
 
 `Start-Service SysMain` throws if SysMain's startup type is `Disabled` (as opposed to merely stopped). The error propagates to the menu's `catch` block and aborts the entire disable-game-mode action, leaving the other four modules in their gaming state.
-
-## To-do
-
-- [ ] **Customize menu** — let the user toggle which modules are active (Power Plan, Explorer, Defender, SysMain, Network Throttling) before applying, accessible via a `[C] Customize` key in the main menu
 
 ## Requirements
 
