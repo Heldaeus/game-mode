@@ -115,10 +115,6 @@ while (Get-Process explorer -ErrorAction SilentlyContinue) { Start-Sleep -Millis
 ```
 If Explorer refuses to terminate (e.g. blocked by an open file dialog), this loop never exits and the script hangs indefinitely.
 
-### WMI setup and uninstall use deprecated cmdlets
-
-`game-mode-wmi-setup.ps1` and `game-mode-wmi-uninstall.ps1` use `Set-WmiInstance`, `Get-WmiObject`, and `Remove-WmiObject`, which are deprecated and unavailable in PowerShell 7+. The scripts work on Windows PowerShell 5.1 (what `powershell.exe` invokes) but would break if migrated to `pwsh.exe`. The CIM equivalents (`New-CimInstance`, `Get-CimInstance`, `Remove-CimInstance`) are the current replacements and work in both versions.
-
 ### Audio device picker is limited to 9 devices
 
 The audio device menu in Settings reads a single keypress and parses it as a digit character. Only devices numbered 1–9 are reachable; any device at index 10 or higher cannot be selected.

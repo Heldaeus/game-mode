@@ -641,16 +641,17 @@ This script reverses everything that `game-mode-wmi-setup.ps1` did. It removes t
 
 ```powershell
 # 1. Remove binding (it references the other two)
-$binding = Get-WmiObject ... | Where-Object { $_.Filter -like "*$filterName*" }
-if ($binding) { $binding | Remove-WmiObject }
+$binding = Get-CimInstance -Namespace root/subscription -ClassName __FilterToConsumerBinding |
+           Where-Object { $_.Filter -like "*$filterName*" }
+if ($binding) { $binding | Remove-CimInstance }
 
 # 2. Remove filter
-$filter = Get-WmiObject -Class __EventFilter -Filter "Name='$filterName'"
-if ($filter) { $filter | Remove-WmiObject }
+$filter = Get-CimInstance -Namespace root/subscription -ClassName __EventFilter -Filter "Name='$filterName'"
+if ($filter) { $filter | Remove-CimInstance }
 
 # 3. Remove consumer
-$consumer = Get-WmiObject -Class CommandLineEventConsumer -Filter "Name='$consumerName'"
-if ($consumer) { $consumer | Remove-WmiObject }
+$consumer = Get-CimInstance -Namespace root/subscription -ClassName CommandLineEventConsumer -Filter "Name='$consumerName'"
+if ($consumer) { $consumer | Remove-CimInstance }
 
 # 4. Remove scheduled task
 if (Get-ScheduledTask -TaskName $taskName -ErrorAction SilentlyContinue) {
@@ -876,8 +877,8 @@ Windows Terminal opens on your screen with the Game Mode menu
 
 ### Game Optimizer doesn't launch when Steam starts (after wmi-setup)
 
-**Cause 1:** The WMI subscription was created for a different username or path. The setup script hardcodes your username and path at the time it was run. If you moved the game-mode folder or changed your Windows username, the scheduled task points to the wrong location.  
-**Fix:** Run `game-mode-wmi-uninstall.ps1` to remove the old subscription, then move/rename as needed, then run `game-mode-wmi-setup.ps1` again.
+**Cause 1:** The WMI subscription was created with a different path. The setup script records the game-mode folder location at the time it was run. If you moved the folder after running setup, the scheduled task points to the old location.  
+**Fix:** Run `game-mode-wmi-uninstall.ps1` to remove the old subscription, then run `game-mode-wmi-setup.ps1` again and confirm the correct path.
 
 **Cause 2:** The WMI service encountered an error. You can check the WMI event log in Event Viewer under `Applications and Services Logs → Microsoft → Windows → WMI-Activity → Operational`.
 

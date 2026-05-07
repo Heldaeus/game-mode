@@ -11,7 +11,14 @@
 #   any GUI app launched from them won't appear on the desktop.
 #   The scheduled task runs as an interactive user and opens the terminal normally.
 
-$gameModeRoot  = "C:\Users\$env:USERNAME\Documents\Claude Projects\game-mode"
+Write-Host ""
+Write-Host "Game Mode folder detected at:"
+Write-Host "  $PSScriptRoot"
+Write-Host ""
+$userPath     = Read-Host "Press Enter to confirm, or type a different path"
+$gameModeRoot = if ($userPath.Trim()) { $userPath.Trim().TrimEnd('\') } else { $PSScriptRoot }
+Write-Host ""
+
 $taskName      = "LaunchGameMode"
 $filterName    = "SteamGameModeFilter"
 $consumerName  = "GameModeConsumer"
@@ -31,9 +38,9 @@ Register-ScheduledTask -TaskName $taskName -Action $action -Principal $principal
 Write-Host "Scheduled task '$taskName' registered."
 
 # WMI event filter: polls root\cimv2 every 3 seconds for a new steam.exe process.
-$filter = Set-WmiInstance -Namespace root\subscription -Class __EventFilter -Arguments @{
+$filter = New-CimInstance -Namespace root/subscription -ClassName __EventFilter -Property @{
     Name           = $filterName
-    EventNamespace = "root\cimv2"
+    EventNamespace = "root/cimv2"
     QueryLanguage  = "WQL"
     Query          = "SELECT * FROM __InstanceCreationEvent WITHIN 3 " +
                      "WHERE TargetInstance ISA 'Win32_Process' " +
@@ -43,14 +50,14 @@ $filter = Set-WmiInstance -Namespace root\subscription -Class __EventFilter -Arg
 Write-Host "WMI event filter '$filterName' registered."
 
 # WMI consumer: triggers the scheduled task when the filter fires.
-$consumer = Set-WmiInstance -Namespace root\subscription -Class CommandLineEventConsumer -Arguments @{
+$consumer = New-CimInstance -Namespace root/subscription -ClassName CommandLineEventConsumer -Property @{
     Name                = $consumerName
     CommandLineTemplate = "schtasks.exe /run /tn `"$taskName`""
 }
 
 Write-Host "WMI consumer '$consumerName' registered."
 
-Set-WmiInstance -Namespace root\subscription -Class __FilterToConsumerBinding -Arguments @{
+New-CimInstance -Namespace root/subscription -ClassName __FilterToConsumerBinding -Property @{
     Filter   = $filter
     Consumer = $consumer
 } | Out-Null
