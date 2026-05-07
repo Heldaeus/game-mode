@@ -188,6 +188,7 @@ function Show-ConfigureGameMode {
         Write-Host ""
         Write-Host "  CONFIGURE GAME MODE" -ForegroundColor White
         Write-Host ""
+        Write-Host "  Choose which optimizations to include in Game Mode." -ForegroundColor Gray
         Write-Host ""
 
         $i = 1
