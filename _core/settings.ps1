@@ -22,9 +22,13 @@ function Save-ModuleConfig {
     $script:ModuleEnabled | ConvertTo-Json | Set-Content $script:ConfigPath -Force
 }
 
+function Get-TamperProtected {
+    try { return (Get-MpComputerStatus -ErrorAction Stop).IsTamperProtected } catch { return $false }
+}
+
 # Tamper Protection blocks Defender changes — disable the module automatically at startup.
 # This does not modify the saved config, so the preference is restored if TP is later turned off.
-if ((Get-MpComputerStatus).IsTamperProtected) {
+if (Get-TamperProtected) {
     $script:ModuleEnabled['Defender'] = $false
 }
 
@@ -87,7 +91,7 @@ function Show-TamperProtection {
     $lastState = $null
 
     while ($true) {
-        $tamperOn = (Get-MpComputerStatus).IsTamperProtected
+        $tamperOn = Get-TamperProtected
         $state    = if ($tamperOn) { 'Enabled' } else { 'Disabled' }
 
         if ($state -ne $lastState) {
@@ -132,31 +136,48 @@ function Show-ModuleConfig([string]$moduleKey, [string]$title, [string[]]$descLi
     while ($true) {
         [Console]::Clear()
 
-        $enabled = $script:ModuleEnabled[$moduleKey]
-        $state   = if ($enabled) { 'Enabled' } else { 'Disabled' }
-        $color   = if ($enabled) { 'Green' } else { 'Red' }
+        $tamperLocked = $moduleKey -eq 'Defender' -and (Get-TamperProtected)
 
         Write-Host ""
         Write-Host "  $title" -ForegroundColor White
         Write-Host ""
         Write-Host ""
-        Write-Host "  Included in Game Mode: " -NoNewline
-        Write-Host $state -ForegroundColor $color
-        Write-Host ""
-        foreach ($line in $descLines) {
-            Write-Host "  $line" -ForegroundColor Gray
-        }
-        Write-Host ""
-        Write-Host "  " -NoNewline; Write-Host "[T]" -NoNewline -ForegroundColor DarkGray; Write-Host " Toggle"
-        Write-Host "  " -NoNewline; Write-Host "[B]" -NoNewline -ForegroundColor DarkGray; Write-Host " Back"
-        Write-Host ""
 
-        $key = [Console]::ReadKey($true)
-        if ($key.KeyChar -eq 't' -or $key.KeyChar -eq 'T') {
-            $script:ModuleEnabled[$moduleKey] = -not $script:ModuleEnabled[$moduleKey]
-            Save-ModuleConfig
-        } elseif ($key.KeyChar -eq 'b' -or $key.KeyChar -eq 'B') {
-            return
+        if ($tamperLocked) {
+            Write-Host "  Included in Game Mode: " -NoNewline
+            Write-Host "Locked" -ForegroundColor Red
+            Write-Host ""
+            Write-Host "  Tamper Protection is on." -ForegroundColor Gray
+            Write-Host "  Disable it to toggle Defender." -ForegroundColor Gray
+            Write-Host ""
+            Write-Host "  " -NoNewline; Write-Host "[B]" -NoNewline -ForegroundColor DarkGray; Write-Host " Back"
+            Write-Host ""
+
+            $key = [Console]::ReadKey($true)
+            if ($key.KeyChar -eq 'b' -or $key.KeyChar -eq 'B') { return }
+        } else {
+            $enabled = $script:ModuleEnabled[$moduleKey]
+            $state   = if ($enabled) { 'Enabled' } else { 'Disabled' }
+            $color   = if ($enabled) { 'Green' } else { 'Red' }
+
+            Write-Host "  Included in Game Mode: " -NoNewline
+            Write-Host $state -ForegroundColor $color
+            Write-Host ""
+            foreach ($line in $descLines) {
+                Write-Host "  $line" -ForegroundColor Gray
+            }
+            Write-Host ""
+            Write-Host "  " -NoNewline; Write-Host "[T]" -NoNewline -ForegroundColor DarkGray; Write-Host " Toggle"
+            Write-Host "  " -NoNewline; Write-Host "[B]" -NoNewline -ForegroundColor DarkGray; Write-Host " Back"
+            Write-Host ""
+
+            $key = [Console]::ReadKey($true)
+            if ($key.KeyChar -eq 't' -or $key.KeyChar -eq 'T') {
+                $script:ModuleEnabled[$moduleKey] = -not $script:ModuleEnabled[$moduleKey]
+                Save-ModuleConfig
+            } elseif ($key.KeyChar -eq 'b' -or $key.KeyChar -eq 'B') {
+                return
+            }
         }
     }
 }
@@ -250,7 +271,7 @@ function Show-Settings {
     while ($inSettings) {
         [Console]::Clear()
 
-        $tamperOn = (Get-MpComputerStatus).IsTamperProtected
+        $tamperOn = Get-TamperProtected
 
         Write-Host ""
         Write-Host "  SETTINGS" -ForegroundColor White
