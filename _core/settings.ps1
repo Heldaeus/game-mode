@@ -1,3 +1,11 @@
+$script:ModuleEnabled = [ordered]@{
+    Explorer            = $true
+    'Power Plan'        = $true
+    Defender            = $true
+    SysMain             = $true
+    'Network Throttling' = $true
+}
+
 function Show-AudioDevice {
     $inAudio = $true
     $redraw = $true
@@ -102,6 +110,124 @@ function Show-TamperProtection {
     }
 }
 
+function Show-ModuleConfig([string]$moduleKey, [string]$title, [string[]]$descLines) {
+    while ($true) {
+        [Console]::Clear()
+
+        $enabled = $script:ModuleEnabled[$moduleKey]
+        $state   = if ($enabled) { 'Enabled' } else { 'Disabled' }
+        $color   = if ($enabled) { 'Green' } else { 'Red' }
+
+        Write-Host ""
+        Write-Host "  $title" -ForegroundColor White
+        Write-Host ""
+        Write-Host ""
+        Write-Host "  Included in Game Mode: " -NoNewline
+        Write-Host $state -ForegroundColor $color
+        Write-Host ""
+        foreach ($line in $descLines) {
+            Write-Host "  $line" -ForegroundColor Gray
+        }
+        Write-Host ""
+        Write-Host "  " -NoNewline; Write-Host "[T]" -NoNewline -ForegroundColor DarkGray; Write-Host " Toggle"
+        Write-Host "  " -NoNewline; Write-Host "[B]" -NoNewline -ForegroundColor DarkGray; Write-Host " Back"
+        Write-Host ""
+
+        $key = [Console]::ReadKey($true)
+        if ($key.KeyChar -eq 't' -or $key.KeyChar -eq 'T') {
+            $script:ModuleEnabled[$moduleKey] = -not $script:ModuleEnabled[$moduleKey]
+        } elseif ($key.KeyChar -eq 'b' -or $key.KeyChar -eq 'B') {
+            return
+        }
+    }
+}
+
+function Show-ConfigureGameMode {
+    $modules = @(
+        [ordered]@{
+            Key   = 'Explorer'
+            Title = 'EXPLORER'
+            Desc  = @(
+                'Kills Explorer.exe while game mode is active,'
+                'freeing CPU and GPU resources.'
+            )
+        }
+        [ordered]@{
+            Key   = 'Power Plan'
+            Title = 'POWER PLAN'
+            Desc  = @(
+                'Switches to Ultimate Performance or High'
+                'Performance power plan.'
+            )
+        }
+        [ordered]@{
+            Key   = 'Defender'
+            Title = 'DEFENDER'
+            Desc  = @(
+                'Disables real-time protection while'
+                'game mode is active.'
+            )
+        }
+        [ordered]@{
+            Key   = 'SysMain'
+            Title = 'SYSMAIN'
+            Desc  = @(
+                'Stops the SysMain (Superfetch) service to'
+                'reduce background disk and memory activity.'
+            )
+        }
+        [ordered]@{
+            Key   = 'Network Throttling'
+            Title = 'NETWORK THROTTLING'
+            Desc  = @(
+                'Disables network throttling and sets'
+                'SystemResponsiveness to 0.'
+            )
+        }
+    )
+
+    while ($true) {
+        [Console]::Clear()
+
+        $dash = ' ' + ([string][char]0x2550 * 35)
+        Write-Host ""
+        Write-Host $dash -ForegroundColor DarkGray
+        Write-Host ""
+        $title = 'CONFIGURE GAME MODE'
+        $pad = [string]::new(' ', [Math]::Floor(($dash.Length - $title.Length) / 2))
+        Write-Host ($pad + $title) -ForegroundColor White
+        Write-Host ""
+        Write-Host $dash -ForegroundColor DarkGray
+        Write-Host ""
+
+        $i = 1
+        foreach ($m in $modules) {
+            $enabled = $script:ModuleEnabled[$m.Key]
+            $state   = if ($enabled) { 'ON ' } else { 'OFF' }
+            $color   = if ($enabled) { 'Green' } else { 'Red' }
+            Write-Host "  " -NoNewline
+            Write-Host "[$i]" -NoNewline -ForegroundColor DarkGray
+            Write-Host " $($m.Title.PadRight(22))" -NoNewline
+            Write-Host $state -ForegroundColor $color
+            $i++
+        }
+
+        Write-Host ""
+        Write-Host "  " -NoNewline; Write-Host "[B]" -NoNewline -ForegroundColor DarkGray; Write-Host " Back"
+        Write-Host ""
+
+        $key = [Console]::ReadKey($true)
+
+        $idx = 0
+        if ([int]::TryParse([string]$key.KeyChar, [ref]$idx) -and $idx -ge 1 -and $idx -le $modules.Count) {
+            $m = $modules[$idx - 1]
+            Show-ModuleConfig $m.Key $m.Title $m.Desc
+        } elseif ($key.KeyChar -eq 'b' -or $key.KeyChar -eq 'B') {
+            return
+        }
+    }
+}
+
 function Show-Settings {
     $inSettings = $true
     $hasAudio   = [bool](Get-Module -ListAvailable -Name AudioDeviceCmdlets)
@@ -127,6 +253,7 @@ function Show-Settings {
             Write-Host "  " -NoNewline; Write-Host "[1]" -NoNewline -ForegroundColor DarkGray; Write-Host " Audio Device"
         }
 
+        Write-Host "  " -NoNewline; Write-Host "[C]" -NoNewline -ForegroundColor DarkGray; Write-Host " Configure Game Mode"
         Write-Host "  " -NoNewline; Write-Host "[B]" -NoNewline -ForegroundColor DarkGray; Write-Host " Back"
         Write-Host ""
 
@@ -155,6 +282,8 @@ function Show-Settings {
 
         if ($hasAudio -and $key.KeyChar -eq '1') {
             Show-AudioDevice
+        } elseif ($key.KeyChar -eq 'c' -or $key.KeyChar -eq 'C') {
+            Show-ConfigureGameMode
         } elseif ($tamperOn -and ($key.KeyChar -eq 't' -or $key.KeyChar -eq 'T')) {
             Show-TamperProtection
         } elseif (-not $hasAudio -and ($key.KeyChar -eq 'i' -or $key.KeyChar -eq 'I')) {

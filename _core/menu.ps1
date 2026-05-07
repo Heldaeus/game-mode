@@ -16,6 +16,7 @@ $root = Split-Path (Split-Path $PSCommandPath -Parent) -Parent
 . "$root\Defender\_module.ps1"
 . "$root\SysMain\_module.ps1"
 . "$root\Network Throttling\_module.ps1"
+. "$root\_core\settings.ps1"
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 function Get-ArtColor ([char]$ch) {
@@ -57,9 +58,11 @@ while ($running) {
 
     $settingsAlert = Get-SettingsAlert
 
-    # Explorer + Power Plan are the reliable visible indicators of game state.
-    # New modules (Defender, SysMain, Network) run as side effects but don't gate the toggle.
-    $on = ((Get-ExplorerState) -eq 'Stopped') -and ((Get-PowerPlanState) -eq 'Ultimate Performance')
+    # Check only enabled modules; all must agree game mode is on.
+    $indicators = @()
+    if ($script:ModuleEnabled['Explorer'])    { $indicators += (Get-ExplorerState) -eq 'Stopped' }
+    if ($script:ModuleEnabled['Power Plan'])  { $indicators += (Get-PowerPlanState) -eq 'Ultimate Performance' }
+    $on = $indicators.Count -gt 0 -and ($indicators -notcontains $false)
     $actionLabel = if ($on) { 'Disable Game Mode' } else { 'Enable Game Mode' }
 
     Write-Host ""
@@ -101,22 +104,21 @@ while ($running) {
 
     if ($key.Key -eq [ConsoleKey]::Enter) {
         if (-not $on) {
-            Set-Explorer $true
-            Set-PowerPlan 'Ultimate'
-            Set-Defender $true
-            Set-SysMain $true
-            Set-NetworkThrottle $true
+            if ($script:ModuleEnabled['Explorer'])             { Set-Explorer $true }
+            if ($script:ModuleEnabled['Power Plan'])           { Set-PowerPlan 'Ultimate' }
+            if ($script:ModuleEnabled['Defender'])             { Set-Defender $true }
+            if ($script:ModuleEnabled['SysMain'])              { Set-SysMain $true }
+            if ($script:ModuleEnabled['Network Throttling'])   { Set-NetworkThrottle $true }
             Set-Content $sentinelPath -Value '' -Force
         } else {
-            Set-Explorer $false
-            Set-PowerPlan 'Balanced'
-            Set-Defender $false
-            Set-SysMain $false
-            Set-NetworkThrottle $false
+            if ($script:ModuleEnabled['Explorer'])             { Set-Explorer $false }
+            if ($script:ModuleEnabled['Power Plan'])           { Set-PowerPlan 'Balanced' }
+            if ($script:ModuleEnabled['Defender'])             { Set-Defender $false }
+            if ($script:ModuleEnabled['SysMain'])              { Set-SysMain $false }
+            if ($script:ModuleEnabled['Network Throttling'])   { Set-NetworkThrottle $false }
             Remove-Item $sentinelPath -Force -ErrorAction SilentlyContinue
         }
     } elseif ($key.KeyChar -eq 's' -or $key.KeyChar -eq 'S') {
-        . "$root\_core\settings.ps1"
         Show-Settings
     } elseif ($key.KeyChar -eq 'q' -or $key.KeyChar -eq 'Q') {
         $running = $false
@@ -128,13 +130,16 @@ while ($running) {
     Write-Host "  Error: $_" -ForegroundColor Red
     Read-Host '  Press Enter to close'
 } finally {
-    $isOn = ((Get-ExplorerState) -eq 'Stopped') -and ((Get-PowerPlanState) -eq 'Ultimate Performance')
+    $finalChecks = @()
+    if ($script:ModuleEnabled['Explorer'])   { $finalChecks += (Get-ExplorerState) -eq 'Stopped' }
+    if ($script:ModuleEnabled['Power Plan']) { $finalChecks += (Get-PowerPlanState) -eq 'Ultimate Performance' }
+    $isOn = $finalChecks.Count -gt 0 -and ($finalChecks -notcontains $false)
     if ($isOn) {
-        try { Set-Explorer $false }       catch {}
-        try { Set-PowerPlan 'Balanced' }  catch {}
-        try { Set-Defender $false }       catch {}
-        try { Set-SysMain $false }        catch {}
-        try { Set-NetworkThrottle $false } catch {}
+        if ($script:ModuleEnabled['Explorer'])             { try { Set-Explorer $false }          catch {} }
+        if ($script:ModuleEnabled['Power Plan'])           { try { Set-PowerPlan 'Balanced' }     catch {} }
+        if ($script:ModuleEnabled['Defender'])             { try { Set-Defender $false }          catch {} }
+        if ($script:ModuleEnabled['SysMain'])              { try { Set-SysMain $false }           catch {} }
+        if ($script:ModuleEnabled['Network Throttling'])   { try { Set-NetworkThrottle $false }   catch {} }
     }
     Remove-Item $sentinelPath -Force -ErrorAction SilentlyContinue
 }
