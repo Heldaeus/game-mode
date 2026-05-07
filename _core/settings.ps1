@@ -22,6 +22,12 @@ function Save-ModuleConfig {
     $script:ModuleEnabled | ConvertTo-Json | Set-Content $script:ConfigPath -Force
 }
 
+# Tamper Protection blocks Defender changes — disable the module automatically at startup.
+# This does not modify the saved config, so the preference is restored if TP is later turned off.
+if ((Get-MpComputerStatus).IsTamperProtected) {
+    $script:ModuleEnabled['Defender'] = $false
+}
+
 function Show-AudioDevice {
     $inAudio = $true
     $redraw = $true
