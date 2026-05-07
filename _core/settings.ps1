@@ -6,6 +6,22 @@ $script:ModuleEnabled = [ordered]@{
     'Network Throttling' = $true
 }
 
+$script:ConfigPath = "$root\_core\.module-config.json"
+
+if (Test-Path $script:ConfigPath) {
+    try {
+        $saved = Get-Content $script:ConfigPath -Raw | ConvertFrom-Json
+        foreach ($key in @($script:ModuleEnabled.Keys)) {
+            $prop = $saved.PSObject.Properties[$key]
+            if ($null -ne $prop) { $script:ModuleEnabled[$key] = [bool]$prop.Value }
+        }
+    } catch {}
+}
+
+function Save-ModuleConfig {
+    $script:ModuleEnabled | ConvertTo-Json | Set-Content $script:ConfigPath -Force
+}
+
 function Show-AudioDevice {
     $inAudio = $true
     $redraw = $true
@@ -132,6 +148,7 @@ function Show-ModuleConfig([string]$moduleKey, [string]$title, [string[]]$descLi
         $key = [Console]::ReadKey($true)
         if ($key.KeyChar -eq 't' -or $key.KeyChar -eq 'T') {
             $script:ModuleEnabled[$moduleKey] = -not $script:ModuleEnabled[$moduleKey]
+            Save-ModuleConfig
         } elseif ($key.KeyChar -eq 'b' -or $key.KeyChar -eq 'B') {
             return
         }

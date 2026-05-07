@@ -23,5 +23,6 @@ $RECYCLE.BIN/
 # Windows shortcuts
 *.lnk
 
-# Game Mode sentinel (runtime state, not source)
+# Runtime state — not source
 _core/.game-mode-active
+_core/.module-config.json

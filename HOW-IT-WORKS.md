@@ -78,9 +78,11 @@ game-mode/
 │   │                                   power plan provisioning, Tamper Protection
 │   ├── recovery.ps1                 ← Crash recovery: restores settings at logon if
 │   │                                   the script was killed while game mode was on
-│   └── .game-mode-active            ← Sentinel file (created on enable, deleted on
-│                                       disable; its presence means a crash recovery
-│                                       may be needed — not tracked by git)
+│   ├── .game-mode-active            ← Sentinel file (created on enable, deleted on
+│   │                                   disable; its presence means a crash recovery
+│   │                                   may be needed — not tracked by git)
+│   └── .module-config.json          ← Saved module on/off choices (written on every
+│                                       toggle, loaded at startup — not tracked by git)
 │
 ├── Explorer/
 │   └── _module.ps1                  ← Kills/restarts Windows Explorer (taskbar, desktop)
@@ -319,7 +321,7 @@ $script:ModuleEnabled = [ordered]@{
 }
 ```
 
-This ordered hashtable is the source of truth for which modules participate in a game mode toggle. It is initialized when `settings.ps1` is dot-sourced at startup (all five enabled by default) and lives in `$script:` scope, meaning it persists for the entire session — changes made in Configure Game Mode are remembered until the script exits.
+This ordered hashtable is the source of truth for which modules participate in a game mode toggle. It is initialized at startup with all five modules enabled, then immediately overridden by any saved values in `_core\.module-config.json` (created the first time a module is toggled in Configure Game Mode). Changes are written to that file on every toggle and reloaded from it on every launch, so your configuration persists across sessions.
 
 `menu.ps1` reads this table on every toggle and every state-detection pass. `settings.ps1` writes to it when the user presses `[T]` on a module's config screen.
 
@@ -336,7 +338,7 @@ A generic screen that handles one module at a time. It shows:
 - `[T]` to toggle the module's entry in `$script:ModuleEnabled`
 - `[B]` to go back
 
-The screen redraws immediately on toggle so the status updates in place.
+The screen redraws immediately on toggle so the status updates in place. After each toggle, `Save-ModuleConfig` writes the full `$script:ModuleEnabled` table to `_core\.module-config.json` so the choice survives the next launch.
 
 #### `Show-Settings`
 

@@ -16,7 +16,7 @@ Pressing Enter in the menu simultaneously applies (or reverts) the following:
 | **SysMain** (Superfetch) | Service stopped | Service started |
 | **Network Throttling** | Disabled (`NetworkThrottlingIndex = 0xFFFFFFFF`) | Restored to default |
 
-Each module can be individually enabled or disabled via **Settings → Configure Game Mode**, so you can choose which optimizations apply when you press Enter.
+Each module can be individually enabled or disabled via **Settings → Configure Game Mode**, so you can choose which optimizations apply when you press Enter. Your choices are saved to `_core/.module-config.json` and restored automatically on next launch.
 
 State is detected from the enabled Explorer and Power Plan modules — these are the reliable visible indicators. The menu shows the current state on each redraw and restores everything automatically when you quit or close the window.
 
