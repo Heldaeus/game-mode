@@ -93,11 +93,6 @@ function Show-TamperProtection {
             $lastState = $state
         }
 
-        if (-not $tamperOn) {
-            Start-Sleep -Milliseconds 800
-            return
-        }
-
         if ([Console]::KeyAvailable) {
             $key = [Console]::ReadKey($true)
             if ($key.KeyChar -eq 'b' -or $key.KeyChar -eq 'B') { return }
