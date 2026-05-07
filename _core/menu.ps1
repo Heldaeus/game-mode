@@ -80,16 +80,21 @@ while ($running) {
     Write-Art " ╚═╝░░░░╚═╝░╚════╝░╚═════╝░╚══════╝"
     $statusLabel = if ($on) { 'ENABLED' } else { 'DISABLED' }
     $statusColor = if ($on) { 'Green' } else { 'Red' }
-    $dash = ' ' + ('═' * 35)
-    $statusText = 'STATUS: '
-    $pad = [string]::new(' ', [Math]::Floor(($dash.Length - $statusText.Length - $statusLabel.Length) / 2))
+    $statusText  = 'STATUS: '
+    $innerWidth  = 33
+    $leftPad     = [Math]::Floor(($innerWidth - $statusText.Length - $statusLabel.Length) / 2)
+    $rightPad    = $innerWidth - $statusText.Length - $statusLabel.Length - $leftPad
+    $emptyRow    = ' ║' + (' ' * $innerWidth) + '║'
+
     Write-Host ""
-    Write-Host $dash -ForegroundColor DarkGray
-    Write-Host ""
-    Write-Host ($pad + $statusText) -NoNewline -ForegroundColor Gray
-    Write-Host $statusLabel -ForegroundColor $statusColor
-    Write-Host ""
-    Write-Host $dash -ForegroundColor DarkGray
+    Write-Host (' ╔' + ('═' * $innerWidth) + '╗') -ForegroundColor DarkGray
+    Write-Host $emptyRow -ForegroundColor DarkGray
+    Write-Host ' ║' -NoNewline -ForegroundColor DarkGray
+    Write-Host (' ' * $leftPad + $statusText) -NoNewline -ForegroundColor Gray
+    Write-Host ($statusLabel + ' ' * $rightPad) -NoNewline -ForegroundColor $statusColor
+    Write-Host '║' -ForegroundColor DarkGray
+    Write-Host $emptyRow -ForegroundColor DarkGray
+    Write-Host (' ╚' + ('═' * $innerWidth) + '╝') -ForegroundColor DarkGray
     Write-Host ""
     Write-Host "  " -NoNewline; Write-Host "[PRESS ENTER]" -NoNewline -ForegroundColor DarkGray; Write-Host " $actionLabel"
     Write-Host ""
