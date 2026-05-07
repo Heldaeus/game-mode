@@ -14,13 +14,9 @@ function Show-AudioDevice {
         if ($redraw) {
             [Console]::Clear()
 
-            $dash = ' ' + ([string][char]0x2550 * 35)
             Write-Host ""
-            Write-Host $dash -ForegroundColor DarkGray
+            Write-Host "  AUDIO DEVICE" -ForegroundColor White
             Write-Host ""
-            Write-Host "   AUDIO DEVICE" -ForegroundColor White
-            Write-Host ""
-            Write-Host $dash -ForegroundColor DarkGray
             Write-Host ""
 
             $devices = Get-AudioDevice -List | Where-Object { $_.Type -eq 'Playback' }
@@ -189,15 +185,9 @@ function Show-ConfigureGameMode {
     while ($true) {
         [Console]::Clear()
 
-        $dash = ' ' + ([string][char]0x2550 * 35)
         Write-Host ""
-        Write-Host $dash -ForegroundColor DarkGray
+        Write-Host "  CONFIGURE GAME MODE" -ForegroundColor White
         Write-Host ""
-        $title = 'CONFIGURE GAME MODE'
-        $pad = [string]::new(' ', [Math]::Floor(($dash.Length - $title.Length) / 2))
-        Write-Host ($pad + $title) -ForegroundColor White
-        Write-Host ""
-        Write-Host $dash -ForegroundColor DarkGray
         Write-Host ""
 
         $i = 1
@@ -238,15 +228,9 @@ function Show-Settings {
 
         $tamperOn = (Get-MpComputerStatus).IsTamperProtected
 
-        $dash = ' ' + ([string][char]0x2550 * 35)
         Write-Host ""
-        Write-Host $dash -ForegroundColor DarkGray
+        Write-Host "  SETTINGS" -ForegroundColor White
         Write-Host ""
-        $title = 'SETTINGS'
-        $pad = [string]::new(' ', [Math]::Floor(($dash.Length - $title.Length) / 2))
-        Write-Host ($pad + $title) -ForegroundColor White
-        Write-Host ""
-        Write-Host $dash -ForegroundColor DarkGray
         Write-Host ""
 
         if ($hasAudio) {
