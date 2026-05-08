@@ -10,32 +10,37 @@ Pressing Enter in the menu simultaneously applies (or reverts) the following:
 
 | Module | Game Mode ON | Game Mode OFF |
 |---|---|---|
-| **Power Plan** | Ultimate Performance | Balanced |
+| **Power Plan** | Ultimate Performance (High Performance fallback) | Balanced |
 | **Windows Explorer** | Killed (frees RAM + CPU) | Relaunched |
 | **Windows Defender** | Real-time protection disabled | Re-enabled |
 | **SysMain** (Superfetch) | Service stopped | Service started |
 | **Network Throttling** | Disabled (`NetworkThrottlingIndex = 0xFFFFFFFF`) | Restored to default |
+| **Timer Resolution** | Set to 0.5ms via `NtSetTimerResolution` (background helper) | Helper killed, resolution restored |
+| **Priority Separation** | `Win32PrioritySeparation = 0x26` (short, fixed, max foreground boost) | Original value restored |
 
-Each module can be individually enabled or disabled via **Settings → Configure Game Mode**, so you can choose which optimizations apply when you press Enter. Your choices are saved to `_core/.module-config.json` and restored automatically on next launch.
+Each module can be individually enabled or disabled via **Settings → Configure Game Mode**. Your choices are saved to `_core/.module-config.json` and restored automatically on next launch.
 
-State is detected from the enabled Explorer and Power Plan modules — these are the reliable visible indicators. The menu shows the current state on each redraw and restores everything automatically when you quit or close the window.
+State is detected from the enabled Explorer, Power Plan, Timer Resolution, and Priority Separation modules. The menu shows ON/OFF on each redraw and restores everything automatically when you quit or close the window.
 
 ## Usage
 
 Double-click **`Game Optimizer.bat`**. It opens in Windows Terminal and self-elevates to Administrator.
 
-```
-  ██████╗  █████╗ ███╗   ███╗███████╗
- ...
-  Enable Game Mode
-  [Press Enter]
-
-  [Q] Quit
-```
-
 - **Enter** — toggle all enabled optimizations on or off
-- **S** — open Settings (audio device, module configuration, Tamper Protection)
+- **S** — open Settings
 - **Q** — quit and auto-restore defaults if game mode is active
+
+## Settings
+
+Accessible via **S** from the main menu.
+
+- **[1] Audio Device** — switch the default playback device (requires AudioDeviceCmdlets)
+- **[C] Configure Game Mode** — toggle individual modules on/off; each shows DISABLED / READY / ON
+- **[G] GPU MSI Mode** — one-time setup to enable Message Signaled Interrupts on all GPUs (reboot required)
+- **[D] Dynamic Tick** — toggle `disabledynamictick` in BCD to force constant timer interrupts (reboot required)
+- **TAB** — go back from any screen
+
+Yellow alert prompts appear in Settings for any missing prerequisites (AudioDeviceCmdlets, Ultimate Performance plan, Tamper Protection enabled).
 
 ## Crash recovery
 
@@ -73,9 +78,9 @@ To remove it:
 
 ## Known issues
 
-### STATUS shows ENABLED even if Defender was not actually toggled
+### STATUS shows ON even if Defender was not actually toggled
 
-`$on` (the game mode state indicator) is derived from Explorer and Power Plan only. If Defender's real-time protection fails to toggle — most commonly because Tamper Protection is blocking it — the menu still reports ENABLED. The Settings screen will show a warning when Tamper Protection is detected, but the main menu gives no indication that the toggle was partially applied.
+`$on` (the game mode state indicator) is derived from Explorer, Power Plan, Timer Resolution, and Priority Separation. If Defender's real-time protection fails to toggle — most commonly because Tamper Protection is blocking it — the menu still reports ON. The Settings screen will show a warning when Tamper Protection is detected, but the main menu gives no indication that the toggle was partially applied.
 
 ### Settings alert asterisk can go stale
 
@@ -87,7 +92,7 @@ The `*` next to `[S] Settings` is computed once at startup and once on return fr
 
 ### ~~`[T]` gives no instruction to return after opening Windows Security~~ *(fixed)*
 
-Pressing `[T]` now opens a dedicated Tamper Protection screen that shows the current status and polls every 500ms. The status updates immediately when Tamper Protection is toggled in Windows Security. Press `[B]` to return to Settings.
+Pressing `[T]` now opens a dedicated Tamper Protection screen that shows the current status and polls every 500ms. The status updates immediately when Tamper Protection is toggled in Windows Security. Press TAB to return to Settings.
 
 ### No auto-elevation — script must be run as Administrator
 
@@ -101,7 +106,7 @@ Every loop iteration (every keypress) calls `Get-Module -ListAvailable -Name Aud
 
 ### ~~`finally` cleanup block has no per-step error handling~~ *(fixed)*
 
-Each of the five cleanup calls in `finally` is now wrapped in its own `try/catch`, so a failure in one step no longer skips the rest. The logon recovery task (`game-mode-recovery-setup.ps1`) covers the crash/force-kill case where `finally` never runs at all.
+Each cleanup call in `finally` is now wrapped in its own `try/catch`, so a failure in one step no longer skips the rest. The logon recovery task (`game-mode-recovery-setup.ps1`) covers the crash/force-kill case where `finally` never runs at all.
 
 ### Network Throttling restores to hardcoded defaults, not original values
 
@@ -125,7 +130,7 @@ The audio device menu in Settings reads a single keypress and parses it as a dig
 
 ### `Set-SysMain` can fail if the service is set to Disabled
 
-`Start-Service SysMain` throws if SysMain's startup type is `Disabled` (as opposed to merely stopped). The error propagates to the menu's `catch` block and aborts the entire disable-game-mode action, leaving the other four modules in their gaming state.
+`Start-Service SysMain` throws if SysMain's startup type is `Disabled` (as opposed to merely stopped). The error propagates to the menu's `catch` block and aborts the entire disable-game-mode action, leaving the other modules in their gaming state.
 
 ## Requirements
 
