@@ -284,6 +284,76 @@ function Show-ConfigureGameMode {
     }
 }
 
+function Get-GpuMsiInfo {
+    $gpus = Get-PnpDevice -Class Display -ErrorAction SilentlyContinue | Where-Object { $_.Status -eq 'OK' }
+    foreach ($gpu in $gpus) {
+        $regPath = "HKLM:\SYSTEM\CurrentControlSet\Enum\$($gpu.InstanceId)\Device Parameters\Interrupt Management\MessageSignaledInterruptProperties"
+        $msi = $null
+        if (Test-Path $regPath) {
+            $msi = (Get-ItemProperty $regPath -Name MSISupported -ErrorAction SilentlyContinue).MSISupported
+        }
+        [PSCustomObject]@{ Name = $gpu.FriendlyName; RegPath = $regPath; MSI = $msi }
+    }
+}
+
+function Show-GpuMsi {
+    while ($true) {
+        [Console]::Clear()
+
+        Write-Host ""
+        Write-Host "  GPU MSI MODE" -ForegroundColor White
+        Write-Host ""
+        Write-Host "  Message Signaled Interrupts reduce GPU interrupt latency." -ForegroundColor Gray
+        Write-Host "  Changes require a reboot to take effect."                  -ForegroundColor Gray
+        Write-Host ""
+
+        $gpus = @(Get-GpuMsiInfo)
+
+        if (-not $gpus) {
+            Write-Host "  No display devices found." -ForegroundColor Red
+            Write-Host ""
+            Write-Host "  " -NoNewline; Write-Host "[B]" -NoNewline -ForegroundColor DarkGray; Write-Host " Back"
+            Write-Host ""
+            $key = [Console]::ReadKey($true)
+            if ($key.KeyChar -eq 'b' -or $key.KeyChar -eq 'B') { return }
+            continue
+        }
+
+        foreach ($gpu in $gpus) {
+            $stateLabel = switch ($gpu.MSI) { 1 { 'Enabled' } 0 { 'Disabled' } default { 'Unknown' } }
+            $stateColor = if ($gpu.MSI -eq 1) { 'Green' } elseif ($gpu.MSI -eq 0) { 'Red' } else { 'Yellow' }
+            Write-Host "  $($gpu.Name)"
+            Write-Host "  MSI: " -NoNewline
+            Write-Host $stateLabel -ForegroundColor $stateColor
+            Write-Host ""
+        }
+
+        $toEnable = @($gpus | Where-Object { $_.MSI -ne 1 })
+
+        if ($toEnable) {
+            Write-Host "  " -NoNewline; Write-Host "[E]" -NoNewline -ForegroundColor DarkGray; Write-Host " Enable MSI on all GPUs"
+        }
+        Write-Host "  " -NoNewline; Write-Host "[B]" -NoNewline -ForegroundColor DarkGray; Write-Host " Back"
+        Write-Host ""
+
+        $key = [Console]::ReadKey($true)
+
+        if ($toEnable -and ($key.KeyChar -eq 'e' -or $key.KeyChar -eq 'E')) {
+            foreach ($gpu in $gpus) {
+                if (-not (Test-Path $gpu.RegPath)) { New-Item -Path $gpu.RegPath -Force | Out-Null }
+                Set-ItemProperty $gpu.RegPath -Name MSISupported -Value 1 -Type DWord
+            }
+            [Console]::Clear()
+            Write-Host ""
+            Write-Host "  Done. Reboot to apply." -ForegroundColor Green
+            Write-Host ""
+            Start-Sleep -Seconds 2
+        } elseif ($key.KeyChar -eq 'b' -or $key.KeyChar -eq 'B') {
+            return
+        }
+    }
+}
+
 function Show-Settings {
     $inSettings = $true
     $hasAudio   = [bool](Get-Module -ListAvailable -Name AudioDeviceCmdlets)
@@ -304,6 +374,7 @@ function Show-Settings {
         }
 
         Write-Host "  " -NoNewline; Write-Host "[C]" -NoNewline -ForegroundColor DarkGray; Write-Host " Configure Game Mode"
+        Write-Host "  " -NoNewline; Write-Host "[G]" -NoNewline -ForegroundColor DarkGray; Write-Host " GPU MSI Mode"
         Write-Host "  " -NoNewline; Write-Host "[B]" -NoNewline -ForegroundColor DarkGray; Write-Host " Back"
         Write-Host ""
 
@@ -334,6 +405,8 @@ function Show-Settings {
             Show-AudioDevice
         } elseif ($key.KeyChar -eq 'c' -or $key.KeyChar -eq 'C') {
             Show-ConfigureGameMode
+        } elseif ($key.KeyChar -eq 'g' -or $key.KeyChar -eq 'G') {
+            Show-GpuMsi
         } elseif ($tamperOn -and ($key.KeyChar -eq 't' -or $key.KeyChar -eq 'T')) {
             Show-TamperProtection
         } elseif (-not $hasAudio -and ($key.KeyChar -eq 'i' -or $key.KeyChar -eq 'I')) {
