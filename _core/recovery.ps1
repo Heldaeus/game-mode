@@ -15,6 +15,7 @@ if (-not (Test-Path $sentinelPath)) { exit 0 }
 . "$root\SysMain\_module.ps1"
 . "$root\Network Throttling\_module.ps1"
 . "$root\Timer Resolution\_module.ps1"
+. "$root\Priority Separation\_module.ps1"
 
 # Explorer is typically relaunched automatically by Windows at logon,
 # so only start it if it's genuinely not running.
@@ -26,5 +27,6 @@ try { Set-Defender $false }        catch {}
 try { Set-SysMain $false }         catch {}
 try { Set-NetworkThrottle $false } catch {}
 try { Set-TimerRes $false }        catch {}
+try { Set-PrioritySep $false }     catch {}
 
 Remove-Item $sentinelPath -Force -ErrorAction SilentlyContinue

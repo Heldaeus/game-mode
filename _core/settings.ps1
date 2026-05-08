@@ -4,7 +4,8 @@ $script:ModuleEnabled = [ordered]@{
     Defender            = $true
     SysMain             = $true
     'Network Throttling' = $true
-    'Timer Resolution'   = $true
+    'Timer Resolution'    = $true
+    'Priority Separation' = $true
 }
 
 $script:ConfigPath = "$root\_core\.module-config.json"
@@ -243,6 +244,14 @@ function Show-ConfigureGameMode {
             Desc  = @(
                 'Sets Windows timer resolution to 0.5ms for'
                 'lower frame time variance.'
+            )
+        }
+        [ordered]@{
+            Key   = 'Priority Separation'
+            Title = 'PRIORITY SEPARATION'
+            Desc  = @(
+                'Sets Win32PrioritySeparation to 0x26: short,'
+                'fixed quanta with maximum foreground boost.'
             )
         }
     )
