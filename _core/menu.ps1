@@ -16,6 +16,7 @@ $root = Split-Path (Split-Path $PSCommandPath -Parent) -Parent
 . "$root\Defender\_module.ps1"
 . "$root\SysMain\_module.ps1"
 . "$root\Network Throttling\_module.ps1"
+. "$root\Timer Resolution\_module.ps1"
 . "$root\_core\settings.ps1"
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -60,8 +61,9 @@ while ($running) {
 
     # Check only enabled modules; all must agree game mode is on.
     $indicators = @()
-    if ($script:ModuleEnabled['Explorer'])    { $indicators += (Get-ExplorerState) -eq 'Stopped' }
-    if ($script:ModuleEnabled['Power Plan'])  { $indicators += (Get-PowerPlanState) -eq 'Ultimate Performance' }
+    if ($script:ModuleEnabled['Explorer'])          { $indicators += (Get-ExplorerState) -eq 'Stopped' }
+    if ($script:ModuleEnabled['Power Plan'])        { $indicators += (Get-PowerPlanState) -eq 'Ultimate Performance' }
+    if ($script:ModuleEnabled['Timer Resolution'])  { $indicators += (Get-TimerResState) -eq 'Active' }
     $on = $indicators.Count -gt 0 -and ($indicators -notcontains $false)
     $actionLabel = if ($on) { 'Disable Game Mode' } else { 'Enable Game Mode' }
 
@@ -114,6 +116,7 @@ while ($running) {
             if ($script:ModuleEnabled['Defender'])             { Set-Defender $true }
             if ($script:ModuleEnabled['SysMain'])              { Set-SysMain $true }
             if ($script:ModuleEnabled['Network Throttling'])   { Set-NetworkThrottle $true }
+            if ($script:ModuleEnabled['Timer Resolution'])     { Set-TimerRes $true }
             Set-Content $sentinelPath -Value '' -Force
         } else {
             if ($script:ModuleEnabled['Explorer'])             { Set-Explorer $false }
@@ -121,6 +124,7 @@ while ($running) {
             if ($script:ModuleEnabled['Defender'])             { Set-Defender $false }
             if ($script:ModuleEnabled['SysMain'])              { Set-SysMain $false }
             if ($script:ModuleEnabled['Network Throttling'])   { Set-NetworkThrottle $false }
+            if ($script:ModuleEnabled['Timer Resolution'])     { Set-TimerRes $false }
             Remove-Item $sentinelPath -Force -ErrorAction SilentlyContinue
         }
     } elseif ($key.KeyChar -eq 's' -or $key.KeyChar -eq 'S') {
@@ -136,8 +140,9 @@ while ($running) {
     Read-Host '  Press Enter to close'
 } finally {
     $finalChecks = @()
-    if ($script:ModuleEnabled['Explorer'])   { $finalChecks += (Get-ExplorerState) -eq 'Stopped' }
-    if ($script:ModuleEnabled['Power Plan']) { $finalChecks += (Get-PowerPlanState) -eq 'Ultimate Performance' }
+    if ($script:ModuleEnabled['Explorer'])          { $finalChecks += (Get-ExplorerState) -eq 'Stopped' }
+    if ($script:ModuleEnabled['Power Plan'])        { $finalChecks += (Get-PowerPlanState) -eq 'Ultimate Performance' }
+    if ($script:ModuleEnabled['Timer Resolution'])  { $finalChecks += (Get-TimerResState) -eq 'Active' }
     $isOn = $finalChecks.Count -gt 0 -and ($finalChecks -notcontains $false)
     if ($isOn) {
         if ($script:ModuleEnabled['Explorer'])             { try { Set-Explorer $false }          catch {} }
@@ -145,6 +150,7 @@ while ($running) {
         if ($script:ModuleEnabled['Defender'])             { try { Set-Defender $false }          catch {} }
         if ($script:ModuleEnabled['SysMain'])              { try { Set-SysMain $false }           catch {} }
         if ($script:ModuleEnabled['Network Throttling'])   { try { Set-NetworkThrottle $false }   catch {} }
+        if ($script:ModuleEnabled['Timer Resolution'])     { try { Set-TimerRes $false }          catch {} }
     }
     Remove-Item $sentinelPath -Force -ErrorAction SilentlyContinue
 }

@@ -4,6 +4,7 @@ $script:ModuleEnabled = [ordered]@{
     Defender            = $true
     SysMain             = $true
     'Network Throttling' = $true
+    'Timer Resolution'   = $true
 }
 
 $script:ConfigPath = "$root\_core\.module-config.json"
@@ -147,14 +148,26 @@ function Show-ModuleConfig([string]$moduleKey, [string]$title, [string[]]$descLi
             Write-Host "  Included in Game Mode: " -NoNewline
             Write-Host "Locked" -ForegroundColor Red
             Write-Host ""
-            Write-Host "  Tamper Protection is on." -ForegroundColor Gray
-            Write-Host "  Disable it to toggle Defender." -ForegroundColor Gray
+            Write-Host "  " -NoNewline
+            Write-Host "Tamper Protection is enabled - Defender cannot be toggled." -ForegroundColor Yellow
+            Write-Host "  " -NoNewline; Write-Host "[T]" -NoNewline -ForegroundColor DarkGray; Write-Host " Open Defender settings to disable it"
             Write-Host ""
             Write-Host "  " -NoNewline; Write-Host "[B]" -NoNewline -ForegroundColor DarkGray; Write-Host " Back"
             Write-Host ""
 
             $key = [Console]::ReadKey($true)
-            if ($key.KeyChar -eq 'b' -or $key.KeyChar -eq 'B') { return }
+            if ($key.KeyChar -eq 't' -or $key.KeyChar -eq 'T') {
+                Show-TamperProtection
+                if (-not (Get-TamperProtected)) {
+                    $pref = $true
+                    try {
+                        $s = Get-Content $script:ConfigPath -Raw -ErrorAction Stop | ConvertFrom-Json
+                        $p = $s.PSObject.Properties['Defender']
+                        if ($null -ne $p) { $pref = [bool]$p.Value }
+                    } catch {}
+                    $script:ModuleEnabled['Defender'] = $pref
+                }
+            } elseif ($key.KeyChar -eq 'b' -or $key.KeyChar -eq 'B') { return }
         } else {
             $enabled = $script:ModuleEnabled[$moduleKey]
             $state   = if ($enabled) { 'Enabled' } else { 'Disabled' }
@@ -222,6 +235,14 @@ function Show-ConfigureGameMode {
             Desc  = @(
                 'Disables network throttling and sets'
                 'SystemResponsiveness to 0.'
+            )
+        }
+        [ordered]@{
+            Key   = 'Timer Resolution'
+            Title = 'TIMER RESOLUTION'
+            Desc  = @(
+                'Sets Windows timer resolution to 0.5ms for'
+                'lower frame time variance.'
             )
         }
     )
