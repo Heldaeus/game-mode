@@ -115,6 +115,10 @@ while (Get-Process explorer -ErrorAction SilentlyContinue) { Start-Sleep -Millis
 ```
 If Explorer refuses to terminate (e.g. blocked by an open file dialog), this loop never exits and the script hangs indefinitely.
 
+### Power Plan module config page does not reflect High Performance fallback
+
+When Ultimate Performance is unavailable, game mode silently falls back to High Performance. The description line on the Power Plan config page (`Settings → Configure Game Mode → [2]`) still reads "Switches to Ultimate Performance or High Performance power plan" regardless. It should detect whether Ultimate Performance is provisioned and update the description accordingly — e.g. *"Switches to High Performance power plan."* — and show an alert prompt (matching the Tamper Protection pattern on the Defender page) offering to provision Ultimate Performance via `powercfg /duplicatescheme`.
+
 ### Audio device picker is limited to 9 devices
 
 The audio device menu in Settings reads a single keypress and parses it as a digit character. Only devices numbered 1–9 are reachable; any device at index 10 or higher cannot be selected.

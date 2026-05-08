@@ -64,7 +64,7 @@ function Show-AudioDevice {
             }
 
             Write-Host ""
-            Write-Host "  " -NoNewline; Write-Host "[B]" -NoNewline -ForegroundColor DarkGray; Write-Host " Back"
+            Write-Host "  " -NoNewline; Write-Host "[TAB]" -NoNewline -ForegroundColor DarkGray; Write-Host " Back"
             Write-Host ""
 
             $redraw = $false
@@ -72,7 +72,7 @@ function Show-AudioDevice {
 
         $key = [Console]::ReadKey($true)
 
-        if ($key.KeyChar -eq 'b' -or $key.KeyChar -eq 'B') {
+        if ($key.Key -eq [ConsoleKey]::Tab) {
             $inAudio = $false
         } else {
             $idx = 0
@@ -119,7 +119,7 @@ function Show-TamperProtection {
             Write-Host ""
             Write-Host "  Read HOW-IT-WORKS to learn why." -ForegroundColor DarkGray
             Write-Host ""
-            Write-Host "  " -NoNewline; Write-Host "[B]" -NoNewline -ForegroundColor DarkGray; Write-Host " Back"
+            Write-Host "  " -NoNewline; Write-Host "[TAB]" -NoNewline -ForegroundColor DarkGray; Write-Host " Back"
             Write-Host ""
 
             $lastState = $state
@@ -127,7 +127,7 @@ function Show-TamperProtection {
 
         if ([Console]::KeyAvailable) {
             $key = [Console]::ReadKey($true)
-            if ($key.KeyChar -eq 'b' -or $key.KeyChar -eq 'B') { return }
+            if ($key.Key -eq [ConsoleKey]::Tab) { return }
         }
 
         Start-Sleep -Milliseconds 500
@@ -153,7 +153,7 @@ function Show-ModuleConfig([string]$moduleKey, [string]$title, [string[]]$descLi
             Write-Host "Tamper Protection is enabled - Defender cannot be toggled." -ForegroundColor Yellow
             Write-Host "  " -NoNewline; Write-Host "[T]" -NoNewline -ForegroundColor DarkGray; Write-Host " Open Defender settings to disable it"
             Write-Host ""
-            Write-Host "  " -NoNewline; Write-Host "[B]" -NoNewline -ForegroundColor DarkGray; Write-Host " Back"
+            Write-Host "  " -NoNewline; Write-Host "[TAB]" -NoNewline -ForegroundColor DarkGray; Write-Host " Back"
             Write-Host ""
 
             $key = [Console]::ReadKey($true)
@@ -168,11 +168,12 @@ function Show-ModuleConfig([string]$moduleKey, [string]$title, [string[]]$descLi
                     } catch {}
                     $script:ModuleEnabled['Defender'] = $pref
                 }
-            } elseif ($key.KeyChar -eq 'b' -or $key.KeyChar -eq 'B') { return }
+            } elseif ($key.Key -eq [ConsoleKey]::Tab) { return }
         } else {
             $enabled = $script:ModuleEnabled[$moduleKey]
-            $state   = if ($enabled) { 'Enabled' } else { 'Disabled' }
-            $color   = if ($enabled) { 'Green' } else { 'Red' }
+            $gameOn  = Test-Path $sentinelPath
+            $state   = if (-not $enabled) { 'DISABLED' } elseif ($gameOn) { 'ON' } else { 'READY' }
+            $color   = if (-not $enabled) { 'Red' } elseif ($gameOn) { 'Green' } else { 'White' }
 
             Write-Host "  Included in Game Mode: " -NoNewline
             Write-Host $state -ForegroundColor $color
@@ -182,14 +183,14 @@ function Show-ModuleConfig([string]$moduleKey, [string]$title, [string[]]$descLi
             }
             Write-Host ""
             Write-Host "  " -NoNewline; Write-Host "[T]" -NoNewline -ForegroundColor DarkGray; Write-Host " Toggle"
-            Write-Host "  " -NoNewline; Write-Host "[B]" -NoNewline -ForegroundColor DarkGray; Write-Host " Back"
+            Write-Host "  " -NoNewline; Write-Host "[TAB]" -NoNewline -ForegroundColor DarkGray; Write-Host " Back"
             Write-Host ""
 
             $key = [Console]::ReadKey($true)
             if ($key.KeyChar -eq 't' -or $key.KeyChar -eq 'T') {
                 $script:ModuleEnabled[$moduleKey] = -not $script:ModuleEnabled[$moduleKey]
                 Save-ModuleConfig
-            } elseif ($key.KeyChar -eq 'b' -or $key.KeyChar -eq 'B') {
+            } elseif ($key.Key -eq [ConsoleKey]::Tab) {
                 return
             }
         }
@@ -262,14 +263,15 @@ function Show-ConfigureGameMode {
         Write-Host ""
         Write-Host "  CONFIGURE GAME MODE" -ForegroundColor White
         Write-Host ""
-        Write-Host "  Choose which optimizations to include in Game Mode." -ForegroundColor Gray
+        Write-Host "  Choose which optimizations Game Mode activates." -ForegroundColor Gray
         Write-Host ""
 
         $i = 1
         foreach ($m in $modules) {
             $enabled = $script:ModuleEnabled[$m.Key]
-            $state   = if ($enabled) { 'ON ' } else { 'OFF' }
-            $color   = if ($enabled) { 'Green' } else { 'Red' }
+            $gameOn  = Test-Path $sentinelPath
+            $state   = if (-not $enabled) { 'DISABLED' } elseif ($gameOn) { 'ON      ' } else { 'READY   ' }
+            $color   = if (-not $enabled) { 'Red' } elseif ($gameOn) { 'Green' } else { 'White' }
             Write-Host "  " -NoNewline
             Write-Host "[$i]" -NoNewline -ForegroundColor DarkGray
             Write-Host " $($m.Title.PadRight(22))" -NoNewline
@@ -278,7 +280,7 @@ function Show-ConfigureGameMode {
         }
 
         Write-Host ""
-        Write-Host "  " -NoNewline; Write-Host "[B]" -NoNewline -ForegroundColor DarkGray; Write-Host " Back"
+        Write-Host "  " -NoNewline; Write-Host "[TAB]" -NoNewline -ForegroundColor DarkGray; Write-Host " Back"
         Write-Host ""
 
         $key = [Console]::ReadKey($true)
@@ -287,7 +289,7 @@ function Show-ConfigureGameMode {
         if ([int]::TryParse([string]$key.KeyChar, [ref]$idx) -and $idx -ge 1 -and $idx -le $modules.Count) {
             $m = $modules[$idx - 1]
             Show-ModuleConfig $m.Key $m.Title $m.Desc
-        } elseif ($key.KeyChar -eq 'b' -or $key.KeyChar -eq 'B') {
+        } elseif ($key.Key -eq [ConsoleKey]::Tab) {
             return
         }
     }
@@ -321,10 +323,10 @@ function Show-GpuMsi {
         if (-not $gpus) {
             Write-Host "  No display devices found." -ForegroundColor Red
             Write-Host ""
-            Write-Host "  " -NoNewline; Write-Host "[B]" -NoNewline -ForegroundColor DarkGray; Write-Host " Back"
+            Write-Host "  " -NoNewline; Write-Host "[TAB]" -NoNewline -ForegroundColor DarkGray; Write-Host " Back"
             Write-Host ""
             $key = [Console]::ReadKey($true)
-            if ($key.KeyChar -eq 'b' -or $key.KeyChar -eq 'B') { return }
+            if ($key.Key -eq [ConsoleKey]::Tab) { return }
             continue
         }
 
@@ -342,7 +344,7 @@ function Show-GpuMsi {
         if ($toEnable) {
             Write-Host "  " -NoNewline; Write-Host "[E]" -NoNewline -ForegroundColor DarkGray; Write-Host " Enable MSI on all GPUs"
         }
-        Write-Host "  " -NoNewline; Write-Host "[B]" -NoNewline -ForegroundColor DarkGray; Write-Host " Back"
+        Write-Host "  " -NoNewline; Write-Host "[TAB]" -NoNewline -ForegroundColor DarkGray; Write-Host " Back"
         Write-Host ""
 
         $key = [Console]::ReadKey($true)
@@ -357,7 +359,7 @@ function Show-GpuMsi {
             Write-Host "  Done. Reboot to apply." -ForegroundColor Green
             Write-Host ""
             Start-Sleep -Seconds 2
-        } elseif ($key.KeyChar -eq 'b' -or $key.KeyChar -eq 'B') {
+        } elseif ($key.Key -eq [ConsoleKey]::Tab) {
             return
         }
     }
@@ -392,7 +394,7 @@ function Show-DynamicTick {
         } else {
             Write-Host "  " -NoNewline; Write-Host "[E]" -NoNewline -ForegroundColor DarkGray; Write-Host " Enable dynamic tick"
         }
-        Write-Host "  " -NoNewline; Write-Host "[B]" -NoNewline -ForegroundColor DarkGray; Write-Host " Back"
+        Write-Host "  " -NoNewline; Write-Host "[TAB]" -NoNewline -ForegroundColor DarkGray; Write-Host " Back"
         Write-Host ""
 
         $key = [Console]::ReadKey($true)
@@ -411,7 +413,7 @@ function Show-DynamicTick {
             Write-Host "  Done. Reboot to apply." -ForegroundColor Green
             Write-Host ""
             Start-Sleep -Seconds 2
-        } elseif ($key.KeyChar -eq 'b' -or $key.KeyChar -eq 'B') {
+        } elseif ($key.Key -eq [ConsoleKey]::Tab) {
             return
         }
     }
@@ -439,7 +441,7 @@ function Show-Settings {
         Write-Host "  " -NoNewline; Write-Host "[C]" -NoNewline -ForegroundColor DarkGray; Write-Host " Configure Game Mode"
         Write-Host "  " -NoNewline; Write-Host "[G]" -NoNewline -ForegroundColor DarkGray; Write-Host " GPU MSI Mode"
         Write-Host "  " -NoNewline; Write-Host "[D]" -NoNewline -ForegroundColor DarkGray; Write-Host " Dynamic Tick"
-        Write-Host "  " -NoNewline; Write-Host "[B]" -NoNewline -ForegroundColor DarkGray; Write-Host " Back"
+        Write-Host "  " -NoNewline; Write-Host "[TAB]" -NoNewline -ForegroundColor DarkGray; Write-Host " Back"
         Write-Host ""
 
         if (-not $hasAudio) {
@@ -511,7 +513,7 @@ function Show-Settings {
                 Write-Host ""
                 Read-Host '  Press Enter to continue'
             }
-        } elseif ($key.KeyChar -eq 'b' -or $key.KeyChar -eq 'B') {
+        } elseif ($key.Key -eq [ConsoleKey]::Tab) {
             $inSettings = $false
         }
     }
