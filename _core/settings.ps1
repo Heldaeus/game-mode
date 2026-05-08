@@ -354,6 +354,60 @@ function Show-GpuMsi {
     }
 }
 
+function Get-DynamicTickState {
+    $output = & bcdedit /enum '{current}' 2>&1
+    $line = $output | Where-Object { $_ -match 'disabledynamictick' }
+    if ($line -match 'Yes') { 'Disabled' } else { 'Enabled' }
+}
+
+function Show-DynamicTick {
+    while ($true) {
+        [Console]::Clear()
+
+        Write-Host ""
+        Write-Host "  DYNAMIC TICK" -ForegroundColor White
+        Write-Host ""
+        Write-Host "  Disabling dynamic tick forces constant timer interrupts," -ForegroundColor Gray
+        Write-Host "  improving timer precision at the cost of power usage."    -ForegroundColor Gray
+        Write-Host "  Changes require a reboot to take effect."                 -ForegroundColor Gray
+        Write-Host ""
+
+        $state = Get-DynamicTickState
+        $stateColor = if ($state -eq 'Disabled') { 'Green' } else { 'Yellow' }
+        Write-Host "  Dynamic tick: " -NoNewline
+        Write-Host $state -ForegroundColor $stateColor
+        Write-Host ""
+
+        if ($state -eq 'Enabled') {
+            Write-Host "  " -NoNewline; Write-Host "[D]" -NoNewline -ForegroundColor DarkGray; Write-Host " Disable dynamic tick"
+        } else {
+            Write-Host "  " -NoNewline; Write-Host "[E]" -NoNewline -ForegroundColor DarkGray; Write-Host " Enable dynamic tick"
+        }
+        Write-Host "  " -NoNewline; Write-Host "[B]" -NoNewline -ForegroundColor DarkGray; Write-Host " Back"
+        Write-Host ""
+
+        $key = [Console]::ReadKey($true)
+
+        if ($state -eq 'Enabled' -and ($key.KeyChar -eq 'd' -or $key.KeyChar -eq 'D')) {
+            & bcdedit /set '{current}' disabledynamictick yes 2>&1 | Out-Null
+            [Console]::Clear()
+            Write-Host ""
+            Write-Host "  Done. Reboot to apply." -ForegroundColor Green
+            Write-Host ""
+            Start-Sleep -Seconds 2
+        } elseif ($state -eq 'Disabled' -and ($key.KeyChar -eq 'e' -or $key.KeyChar -eq 'E')) {
+            & bcdedit /deletevalue '{current}' disabledynamictick 2>&1 | Out-Null
+            [Console]::Clear()
+            Write-Host ""
+            Write-Host "  Done. Reboot to apply." -ForegroundColor Green
+            Write-Host ""
+            Start-Sleep -Seconds 2
+        } elseif ($key.KeyChar -eq 'b' -or $key.KeyChar -eq 'B') {
+            return
+        }
+    }
+}
+
 function Show-Settings {
     $inSettings = $true
     $hasAudio   = [bool](Get-Module -ListAvailable -Name AudioDeviceCmdlets)
@@ -375,6 +429,7 @@ function Show-Settings {
 
         Write-Host "  " -NoNewline; Write-Host "[C]" -NoNewline -ForegroundColor DarkGray; Write-Host " Configure Game Mode"
         Write-Host "  " -NoNewline; Write-Host "[G]" -NoNewline -ForegroundColor DarkGray; Write-Host " GPU MSI Mode"
+        Write-Host "  " -NoNewline; Write-Host "[D]" -NoNewline -ForegroundColor DarkGray; Write-Host " Dynamic Tick"
         Write-Host "  " -NoNewline; Write-Host "[B]" -NoNewline -ForegroundColor DarkGray; Write-Host " Back"
         Write-Host ""
 
@@ -407,6 +462,8 @@ function Show-Settings {
             Show-ConfigureGameMode
         } elseif ($key.KeyChar -eq 'g' -or $key.KeyChar -eq 'G') {
             Show-GpuMsi
+        } elseif ($key.KeyChar -eq 'd' -or $key.KeyChar -eq 'D') {
+            Show-DynamicTick
         } elseif ($tamperOn -and ($key.KeyChar -eq 't' -or $key.KeyChar -eq 'T')) {
             Show-TamperProtection
         } elseif (-not $hasAudio -and ($key.KeyChar -eq 'i' -or $key.KeyChar -eq 'I')) {
