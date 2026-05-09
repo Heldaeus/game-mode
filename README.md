@@ -24,7 +24,7 @@ State is detected from the enabled Explorer, Power Plan, Timer Resolution, and P
 
 ## Usage
 
-Double-click **`Game Optimizer.bat`**. It opens in Windows Terminal and self-elevates to Administrator.
+Right-click **`Game Optimizer.bat`** and select **Run as Administrator**. It opens in Windows Terminal.
 
 - **Enter** — toggle all enabled optimizations on or off
 - **S** — open Settings
@@ -90,10 +90,6 @@ The `*` next to `[S] Settings` is computed once at startup and once on return fr
 
 `Get-SettingsAlert` (which checks Tamper Protection via `Get-MpComputerStatus`) runs before the `try/catch` that wraps the menu loop. If the WMI service is unavailable, the script exits with a raw PowerShell error instead of the "Press Enter to close" prompt.
 
-### ~~`[T]` gives no instruction to return after opening Windows Security~~ *(fixed)*
-
-Pressing `[T]` now opens a dedicated Tamper Protection screen that shows the current status and polls every 500ms. The status updates immediately when Tamper Protection is toggled in Windows Security. Press TAB to return to Settings.
-
 ### No auto-elevation — script must be run as Administrator
 
 Self-elevation was removed. If the script is launched without admin rights it exits immediately with a message instructing the user to re-launch as Administrator.
@@ -103,10 +99,6 @@ The previous auto-elevation approach re-launched `powershell.exe` with `-Verb Ru
 ### `Get-SettingsAlert` runs expensive operations on every menu redraw
 
 Every loop iteration (every keypress) calls `Get-Module -ListAvailable -Name AudioDeviceCmdlets` (filesystem scan), `powercfg /list` (subprocess), and `Get-MpComputerStatus` (WMI query). These results don't change between keypresses, so the repeated work causes perceptible lag on each redraw.
-
-### ~~`finally` cleanup block has no per-step error handling~~ *(fixed)*
-
-Each cleanup call in `finally` is now wrapped in its own `try/catch`, so a failure in one step no longer skips the rest. The logon recovery task (`game-mode-recovery-setup.ps1`) covers the crash/force-kill case where `finally` never runs at all.
 
 ### Network Throttling restores to hardcoded defaults, not original values
 
@@ -127,6 +119,10 @@ When Ultimate Performance is unavailable, game mode silently falls back to High 
 ### Audio device picker is limited to 9 devices
 
 The audio device menu in Settings reads a single keypress and parses it as a digit character. Only devices numbered 1–9 are reachable; any device at index 10 or higher cannot be selected.
+
+### Timer Resolution has no effect on games on Windows 11 / Windows 10 2004+
+
+On Windows 11 and Windows 10 post-2004, timer resolution is scoped per-process: a process calling `NtSetTimerResolution` only changes the resolution for itself, not system-wide. The background helper holds 0.5ms for its own process only — games and other applications are unaffected unless they independently request a lower resolution. The module has no practical impact on gaming performance on modern Windows builds.
 
 ### `Set-SysMain` can fail if the service is set to Disabled
 
